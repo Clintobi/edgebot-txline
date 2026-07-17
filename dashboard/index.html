@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EdgeBot — Autonomous Trading Agent</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background:#020617; color:#e2e8f0; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+  .tag { display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#86efac; background:#052e16; border:1px solid #14532d; padding:4px 12px; border-radius:999px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#4ade80; }
+  h1 { font-size: 30px; margin: 16px 0 6px; letter-spacing:-0.02em; }
+  .sub { color:#94a3b8; margin: 0 0 28px; }
+  .grid { display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-bottom: 28px; }
+  .card { background:#0f172a; border:1px solid #1e293b; border-radius:12px; padding:16px; }
+  .card .k { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; }
+  .card .v { font-size:22px; font-weight:700; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top: 8px; }
+  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid #1e293b; }
+  th { color:#64748b; font-weight:500; font-size:12px; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .buy { color:#4ade80; } .hold { color:#94a3b8; }
+  a { color:#4ade80; text-decoration:none; } a:hover { text-decoration:underline; }
+  .foot { margin-top: 32px; color:#475569; font-size:12px; }
+  h2 { font-size:15px; color:#cbd5e1; margin: 28px 0 8px; }
+  code { background:#1e293b; padding:1px 6px; border-radius:5px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="tag"><span class="dot"></span> Autonomous · TxLINE odds → Solana execution</span>
+  <h1>EdgeBot</h1>
+  <p class="sub">An autonomous agent that reads TxLINE's fair odds, spots a mispriced on-chain market, and stakes the +EV side — no human input.</p>
+
+  <div class="grid">
+    <div class="card"><div class="k">Signal</div><div class="v">TxLINE odds</div></div>
+    <div class="card"><div class="k">Venue</div><div class="v">Solana devnet</div></div>
+    <div class="card"><div class="k">Strategy</div><div class="v">Value / edge</div></div>
+  </div>
+
+  <h2>How it decides</h2>
+  <p class="sub" style="font-size:14px">
+    fair = renormalized TxLINE 1X2 &nbsp;·&nbsp; market = pool <code>yes/(yes+no)</code> &nbsp;·&nbsp;
+    edge = fair − market. If <code>|edge| &gt; 3%</code>, stake the underpriced side sized ∝ edge, else HOLD.
+  </p>
+
+  <h2>Last autonomous run</h2>
+  <div id="meta" class="sub" style="font-size:13px">loading…</div>
+  <table id="tbl"><thead><tr><th>Round</th><th>Fair P(home)</th><th>Market YES</th><th>Edge</th><th>Action</th></tr></thead><tbody></tbody></table>
+
+  <p class="foot">
+    Program (venue): <a href="https://explorer.solana.com/address/37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW?cluster=devnet">37Gjug…9vTW</a>
+    · <a href="https://github.com/Clintobi/edgebot-txline">source</a> · TxODDS × Solana World Cup — Trading Tools & Agents
+  </p>
+</div>
+<script>
+fetch('./last-run.json').then(r=>r.json()).then(d=>{
+  const pct = x => (x*100).toFixed(1)+'%';
+  document.getElementById('meta').innerHTML =
+    `market <a href="https://explorer.solana.com/address/${d.market}?cluster=devnet">${d.market.slice(0,6)}…</a> · odds fixture ${d.oddsFixture} · final YES ${pct(d.final.priceYes)} (converged toward fair value)`;
+  const tb = document.querySelector('#tbl tbody');
+  d.decisions.forEach(x=>{
+    const buy = x.action !== 'HOLD';
+    tb.insertAdjacentHTML('beforeend',
+      `<tr><td class="num">${x.round}</td><td class="num">${pct(x.fair)}</td><td class="num">${pct(x.marketYes)}</td>
+       <td class="num">${x.edge>=0?'+':''}${pct(x.edge)}</td>
+       <td class="${buy?'buy':'hold'}">${buy?('BUY '+(x.amount/1e6).toFixed(1)+' USDC'):'HOLD'}</td></tr>`);
+  });
+}).catch(()=>{document.getElementById('meta').textContent='run data unavailable';});
+</script>
+</body>
+</html>

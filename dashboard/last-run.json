@@ -1,0 +1,60 @@
+{
+  "oddsFixture": 18257739,
+  "market": "EEkYJFPHgRUPRYH6Z6BwDwZkLwffRiMnTckTPXRp4bGT",
+  "mint": "6EgrCea5dnaQbQzcokSMet5hhFgjJXno5cJ8NUcXPfpf",
+  "decisions": [
+    {
+      "round": 1,
+      "fair": 0.615296222490509,
+      "marketYes": 0.2,
+      "edge": 0.41529622249050896,
+      "action": "deposit_yes",
+      "amount": 40000000
+    },
+    {
+      "round": 2,
+      "fair": 0.615296222490509,
+      "marketYes": 0.42857142857142855,
+      "edge": 0.18672479391908042,
+      "action": "deposit_yes",
+      "amount": 18672479
+    },
+    {
+      "round": 3,
+      "fair": 0.615296222490509,
+      "marketYes": 0.4958167887450728,
+      "edge": 0.11947943374543618,
+      "action": "deposit_yes",
+      "amount": 11947943
+    },
+    {
+      "round": 4,
+      "fair": 0.615296222490509,
+      "marketYes": 0.5311229508036266,
+      "edge": 0.08417327168688238,
+      "action": "deposit_yes",
+      "amount": 8417327
+    },
+    {
+      "round": 5,
+      "fair": 0.615296222490509,
+      "marketYes": 0.5531668575658868,
+      "edge": 0.06212936492462218,
+      "action": "deposit_yes",
+      "amount": 6212936
+    },
+    {
+      "round": 6,
+      "fair": 0.615296222490509,
+      "marketYes": 0.5681527439426203,
+      "edge": 0.047143478547888695,
+      "action": "deposit_yes",
+      "amount": 4714348
+    }
+  ],
+  "final": {
+    "yes": 109965033,
+    "no": 80000000,
+    "priceYes": 0.5788698649608847
+  }
+}
