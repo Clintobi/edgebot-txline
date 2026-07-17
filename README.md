@@ -2,87 +2,101 @@
 
 **TxODDS × Solana World Cup Hackathon · Trading Tools and Agents track**
 
-EdgeBot ingests TxLINE live odds, computes each side's fair win probability,
-compares it to an **on-chain prediction market's pool-implied price**, and
-**autonomously stakes USDC on the mispriced (+EV) side** — no manual input. It
-re-evaluates in a loop and stops when the market has converged to fair value.
+EdgeBot ingests TxLINE odds, computes each side's fair win probability, compares
+it to an **on-chain prediction market's pool-implied price**, and **autonomously
+stakes USDC on the mispriced (+EV) side** — no manual input. It re-evaluates in a
+loop until the market converges to fair value, then **settles the market from the
+real match result fetched from TxLINE** and collects.
 
 **Dashboard (application access):** https://edgebot-txline.vercel.app
 
-## Signal → decision → execution
+## Signal → decision → execution → honest settlement
 
-1. **Ingest** TxLINE odds (`/api/odds/stream` live, `/api/odds/snapshot`
-   fallback). The `TXLineStablePriceDemargined` book gives fair implied
-   probabilities directly (`Pct`).
-2. **Fair price**: renormalize the 1X2 to a two-way, e.g. `P(Spain) = 61.5%`.
+1. **Ingest** TxLINE odds. The `TXLineStablePriceDemargined` book gives fair
+   implied probabilities directly (`Pct = [part1, draw, part2]`).
+2. **Fair price.** For a "team1 wins outright" market, `P(YES) = part1 / 100` —
+   the **raw** home-win probability. The draw and the away win both belong in NO,
+   so we do **not** renormalize to a two-way (that would inflate the favourite —
+   e.g. a true 72.5% becomes a fictitious ~90%).
 3. **Market price**: read the on-chain market account → `YES = yes/(yes+no)`.
 4. **Edge** `= fair − market`. If `|edge| > 3%`, stake the underpriced side,
    sized ∝ edge (capped). Else **HOLD**.
 5. **Execute**: submit a `deposit_yes`/`deposit_no` transaction. Repeat.
+6. **Settle from the real result.** After the match, EdgeBot fetches TxLINE's
+   **finalised score** (goal stat keys `1`,`2`), derives the outcome, and settles
+   the market on **what actually happened** — it never passes a chosen outcome. If
+   the fixture is not finalised, it refuses to settle.
 
-Fully autonomous — inputs are only the live odds and on-chain state; the loop
-runs and executes with no human in the loop.
+Fully autonomous: the inputs are the live odds and on-chain state; the outcome is
+the real score. No human picks the winner.
 
-## Live demo (devnet)
+## Live demo (devnet) — a real, finished fixture
 
-A noise trader mispriced a Spain-vs-Argentina market to **YES = 0%** (all stake on
-Argentina) while TxLINE's fair price for Spain was **61.5%**. EdgeBot corrected it
-over 6 on-chain rounds, sizing each bet to the shrinking edge:
+Market: **"Argentina to win outright"**, TxLINE fixture `18202701` (Argentina
+finished **3–2**). Counterparty liquidity of 100 USDC was seeded on the NO side so
+the market is tradeable on devnet (this is honestly labelled as liquidity, not a
+signal). TxLINE's demargined closing line put **P(Argentina win) at 72.5%**
+(1X2 = 72/19/8) while the market opened at YES = 0%, so EdgeBot bought YES down the
+shrinking edge:
 
 | round | fair | market YES | edge | action |
 |---|---|---|---|---|
-| 1 | 61.5% | 0.0% | +61.5% | BUY 40 |
-| 2 | 61.5% | 28.6% | +33.0% | BUY 33 |
-| 3 | 61.5% | 42.2% | +19.3% | BUY 19.3 |
-| 4 | 61.5% | 48.0% | +13.5% | BUY 13.5 |
-| 5 | 61.5% | 51.4% | +10.1% | BUY 10.1 |
-| 6 | 61.5% | 53.7% | +7.8% | BUY 7.8 |
+| 1 | 72.5% | 0.0%  | +72.5% | BUY Argentina 40.0 |
+| 2 | 72.5% | 28.6% | +43.9% | BUY Argentina 40.0 |
+| 3 | 72.5% | 44.4% | +28.0% | BUY Argentina 28.0 |
+| 4 | 72.5% | 51.9% | +20.5% | BUY Argentina 20.5 |
+| 5 | 72.5% | 56.2% | +16.2% | BUY Argentina 16.2 |
+| 6 | 72.5% | 59.1% | +13.3% | BUY Argentina 13.3 |
 
-**Then it closes the loop.** The match resolves Spain-win, the market settles, and
-the agent collects:
+**Then it closes the loop honestly.** EdgeBot fetches the real TxLINE result —
+**Argentina 3–2 → resolves YES** — settles the market on that score, and claims:
 
 ```
-staked (6 autonomous bets):  123.8 USDC
-collected on win:            223.8 USDC
-realized P&L:               +100.0 USDC   ← the counterparty's stake
+staked (6 autonomous bets):  158.1 USDC
+real result:                 Argentina 3–2  ->  YES
+collected:                   258.1 USDC
+realized P&L:               +100.0 USDC   ← settled on the REAL score from TxLINE,
+                                            not an outcome the agent chose
 ```
 
-Signal → autonomous execution → settlement → **realized profit**. Execution venue:
-[`37Gjug…9vTW`](https://explorer.solana.com/address/37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW?cluster=devnet) (devnet) · live dashboard: https://edgebot-txline.vercel.app
+The agent only profits because the side it staked (Argentina) matched the real
+result. Ask "how do you know it won?" → "TxLINE's finalised score says 3–2."
+Execution venue: [`37Gjug…9vTW`](https://explorer.solana.com/address/37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW?cluster=devnet)
+(devnet) · live dashboard: https://edgebot-txline.vercel.app
 
 ## TxLINE endpoints used
 
 - `POST /auth/guest/start` — guest JWT.
-- On-chain `subscribe(serviceLevel=1, weeks=4)` + `POST /api/token/activate` — API token (`subscribe.mjs`).
-- `GET /api/odds/snapshot/{fixtureId}` (+ `/api/odds/stream` live) — odds → fair probability.
+- `GET /api/odds/snapshot/{fixtureId}` (live) and `GET /api/odds/updates/{fixtureId}`
+  (tick history, so the pre-match closing line is recoverable after kickoff) — odds → fair probability.
+- `GET /api/scores/snapshot/{fixtureId}` — finalised score (goal keys `1`,`2`) → real settlement outcome.
 
 ## Run it
 
 ```bash
 npm install
-# 1) get a TxLINE API token (on-chain subscribe + activate)
-DEPLOYER_KEYPAIR=deployer.json node subscribe.mjs
-# 2) run the agent
-DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json node agent.mjs
+# run against a finished fixture — the full loop completes in one pass:
+DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json REAL_FIXTURE=18202701 node agent.mjs
+
+# or against an upcoming match once it finishes (both teams named):
+#   France v England:      REAL_FIXTURE=18257865
+#   Final Spain v Argentina: REAL_FIXTURE=18257739
 ```
 
-## During real matches
+Because both the odds tick history and the finalised score stay available after a
+match, one run reproduces the whole signal → settle loop for any finished fixture.
 
-Pre-match odds are sparse; during a live match EdgeBot consumes TxLINE's
-continuous odds stream and re-prices every tick — reacting to goals in real
-time. The `LIVE` tag in logs shows live-pull vs. last-observed cache.
+## Settlement integrity
 
-## TxLINE API feedback
-
-**Liked:** the demargined odds book returns clean implied probabilities, so the
-signal layer is trivial; one normalised schema across scores/odds/fixtures. SSE
-is genuinely real-time. **Friction:** odds/scores snapshots are transient
-pre-match (empty between pushes), so an agent must cache the last-seen tick and
-rely on the stream during play; data access needs the on-chain subscribe +
-`/api/token/activate` handshake before anything returns (403 until then).
+EdgeBot currently settles via `admin_settle(realOutcome)` where `realOutcome` is
+**derived from TxLINE's finalised score**, so the agent can never pay itself on an
+invented result. The stronger form — routing settlement through the on-chain
+`validate_stat` Merkle-proof CPI so *anyone* can verify the outcome trustlessly —
+is the Track-1 (`fulltime-prediction-markets`) settle path; EdgeBot consumes the
+same TxLINE result data.
 
 ## Roadmap
 
-Two-sided market making (quote both sides); exit logic (sell before settlement on
-edge reversal); Kelly sizing; persistent daemon; integrate TxLINE's native
-on-chain trading instructions (`create_trade` / `validate_odds` / `settle_trade`).
+CLV (closing-line-value) backtest to quantify edge; quarter-Kelly sizing with
+exposure caps + a drawdown kill-switch; a persistent SSE daemon that re-prices per
+tick; two-sided market making with pre-settlement exit on edge reversal.

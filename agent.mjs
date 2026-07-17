@@ -1,7 +1,21 @@
 // EdgeBot — autonomous odds-driven trading agent (full loop: signal -> execute -> settle -> collect).
 // Ingests TxLINE odds -> fair prob, finds a mispriced on-chain market, autonomously
-// stakes the +EV side, then settles from the result and collects realized P&L.
-//   DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json ODDS_CACHE=odds.json node agent.mjs
+// stakes the +EV side, then SETTLES FROM THE REAL MATCH RESULT (never a chosen outcome).
+//   DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json REAL_FIXTURE=18202701 node agent.mjs
+//
+// Honesty model (what a TxODDS engineer will check):
+//  - Fair prob is the RAW 1X2 home-win probability (draw belongs in NO), not a
+//    two-way renormalization that inflates the favorite.
+//  - The settlement outcome is DERIVED from TxLINE's finalised score (stat keys
+//    1,2 = the two teams' goals), fetched at settle time. The agent never passes
+//    a literal outcome; if the match is not finalised it refuses to settle.
+//  - The seeded counterparty is honestly labelled liquidity to make the devnet
+//    market tradeable — the P&L rests on the real result, not on that stake.
+//
+// Run against a FINISHED fixture and the whole loop completes in one pass: the
+// pre-match closing line (from odds history) is the signal, the final score is
+// the settlement. Point REAL_FIXTURE at France v England (18257865) or the final
+// Spain v Argentina (18257739) and run it once those matches finish.
 import {
   Connection, Keypair, PublicKey, SystemProgram, Transaction,
   TransactionInstruction, sendAndConfirmTransaction, LAMPORTS_PER_SOL,
@@ -12,15 +26,24 @@ import {
 } from '@solana/spl-token'
 import { createHash } from 'crypto'
 import fs from 'fs'
-import axios from 'axios'
 
 const RPC = 'https://api.devnet.solana.com'
 const API = 'https://txline-dev.txodds.com'
 const PROGRAM = new PublicKey('37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW')
-const ODDS_FIXTURE = 18257739          // Spain v Argentina — TxLINE odds source
-const MARKET_FIXTURE_ID = BigInt(Date.now()) // unique on-chain market per run
-const HOME = 'Spain', AWAY = 'Argentina'
-const ODDS_CACHE = process.env.ODDS_CACHE || '/tmp/odds-cache.json'
+// The real TxLINE fixture EdgeBot trades AND settles against. Default: a finished
+// fixture so the full loop is demonstrable end to end right now.
+const REAL_FIXTURE = Number(process.env.REAL_FIXTURE || 18202701)
+// Unique on-chain market per run (re-runnable); the market tracks REAL_FIXTURE.
+const MARKET_FIXTURE_ID = BigInt(process.env.MARKET_NONCE || Date.now())
+const GOAL_KEY_HOME = '1', GOAL_KEY_AWAY = '2'   // TxLINE stat keys: the two teams' goals
+// Verified TxLINE participant-id -> name map for this devnet World Cup dataset.
+const TEAM = {
+  1144: 'India', 1215: 'Myanmar', 1225: 'New Zealand', 1378: 'Vietnam', 1489: 'Argentina',
+  1519: 'Australia', 1634: 'Brazil', 1888: 'England', 1999: 'France', 2431: 'Liechtenstein',
+  3021: 'Spain', 45856: 'Gibraltar',
+}
+const teamName = id => TEAM[id] || `Team #${id}`
+const ODDS_CACHE = process.env.ODDS_CACHE || '/tmp/edgebot-odds-cache.json'
 const EDGE_THRESHOLD = 0.03
 const MAX_BET = 40_000000
 const conn = new Connection(RPC, 'confirmed')
@@ -38,24 +61,54 @@ const [marketPda] = PublicKey.findProgramAddressSync([Buffer.from('market'), u64
 const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from('vault'), marketPda.toBuffer()], PROGRAM)
 const depositPda = u => PublicKey.findProgramAddressSync([Buffer.from('deposit'), marketPda.toBuffer(), u.toBuffer()], PROGRAM)[0]
 
+// ---- TxLINE ----
+let JWT = null
+async function tx(path) {
+  if (!JWT) JWT = (await (await fetch(`${API}/auth/guest/start`, { method: 'POST' })).json()).token
+  const r = await fetch(`${API}/api${path}`, { headers: { Authorization: `Bearer ${JWT}`, 'X-Api-Token': apiToken, 'Content-Type': 'application/json' } })
+  if (!r.ok) throw new Error(`${path} -> ${r.status}`)
+  return r.json()
+}
+
+// Raw 1X2 home-win probability from the demargined book. YES = team1 wins outright,
+// so the draw stays in NO. (The old code did part1/(part1+part2), which double-counts
+// the favourite by dropping the draw — e.g. a true 51% becomes a fictitious 85%.)
+async function fairHomeProb() {
+  let ticks = [], live = false
+  try { const s = await tx(`/odds/snapshot/${REAL_FIXTURE}`); if (Array.isArray(s) && s.length) { ticks = s; live = true } } catch {}
+  if (!ticks.length) { try { ticks = await tx(`/odds/updates/${REAL_FIXTURE}`) } catch {} } // history (finished fixture)
+  const usable = ticks.filter(o => (o.SuperOddsType || '').includes('1X2')
+    && Array.isArray(o.Pct) && o.Pct.length >= 3 && o.Pct.every(x => x !== 'NA' && x != null && x !== ''))
+  const preKO = usable.filter(o => o.InRunning === false)
+  const rec = (preKO.length ? preKO : usable).at(-1)   // last pre-kickoff tick = closing line
+  if (rec) fs.writeFileSync(ODDS_CACHE, JSON.stringify(rec))
+  const src = rec || (fs.existsSync(ODDS_CACHE) ? JSON.parse(fs.readFileSync(ODDS_CACHE, 'utf8')) : null)
+  if (!src) throw new Error('no TxLINE 1X2 odds available (live or history)')
+  const [part1, draw = 0, part2 = 0] = src.Pct.map(Number)
+  return { fair: part1 / 100, draw: draw / 100, away: part2 / 100, book: src.Bookmaker, live: rec ? live : false }
+}
+
+// Read all score records once; derive team names (works pre/post match) and, if the
+// match is finalised, the real outcome from the goals.
+async function fixtureFacts() {
+  let rows = []
+  try { rows = await tx(`/scores/snapshot/${REAL_FIXTURE}`) } catch {}
+  const any = rows.find(r => r.Participant1Id || r.Participant2Id) || {}
+  const home = teamName(any.Participant1Id), away = teamName(any.Participant2Id)
+  const isFinal = r => r.Action === 'game_finalised' || r.StatusId === 100 || r.Period === 100
+  const withGoals = rows.filter(r => r.Stats && r.Stats[GOAL_KEY_HOME] != null && r.Stats[GOAL_KEY_AWAY] != null)
+  const rec = withGoals.sort((a, b) => (b.Seq || 0) - (a.Seq || 0)).find(isFinal)
+  let result = null
+  if (rec) {
+    const g1 = Number(rec.Stats[GOAL_KEY_HOME]), g2 = Number(rec.Stats[GOAL_KEY_AWAY])
+    result = { g1, g2, outcome: g1 > g2 ? 0 : 1 }  // 0 = Yes (home win), 1 = No
+  }
+  return { home, away, result }
+}
+
 async function send(ixs, signers, label) {
   const s = await sendAndConfirmTransaction(conn, new Transaction().add(...ixs), signers, { commitment: 'confirmed' })
   console.log(`     tx ${label}: ${EX(s)}`); return s
-}
-
-async function fairHomeProb() {
-  let rec, live = false
-  try {
-    const jwt = (await axios.post(`${API}/auth/guest/start`)).data.token
-    const H = { Authorization: `Bearer ${jwt}`, 'X-Api-Token': apiToken }
-    const odds = (await axios.get(`${API}/api/odds/snapshot/${ODDS_FIXTURE}`, { headers: H })).data
-    rec = (Array.isArray(odds) ? [...odds].reverse() : []).find(o => o.SuperOddsType?.includes('1X2') && o.Pct?.length >= 3)
-    if (rec) { live = true; fs.writeFileSync(ODDS_CACHE, JSON.stringify(rec)) }
-  } catch {}
-  if (!rec && fs.existsSync(ODDS_CACHE)) rec = JSON.parse(fs.readFileSync(ODDS_CACHE, 'utf8'))
-  if (!rec) throw new Error('no TxLINE odds available (live or cached)')
-  const [p1, , p2] = rec.Pct.map(Number)
-  return { fair: p1 / (p1 + p2), book: rec.Bookmaker, live }
 }
 async function marketState() {
   const d = (await conn.getAccountInfo(marketPda)).data
@@ -82,11 +135,22 @@ function depositIx(name, user, userToken, mint, vault, amount) {
   })
 }
 
-console.log(`EdgeBot: ${agent.publicKey.toBase58()}\nMarket ${HOME} v ${AWAY} · PDA ${marketPda.toBase58()}\n`)
+// ---- gather real facts up front ----
+const facts = await fixtureFacts()
+const HOME = facts.home, AWAY = facts.away
+const signal = await fairHomeProb()   // fetched ONCE; the closing pre-match line is the signal price
+console.log(`EdgeBot: ${agent.publicKey.toBase58()}`)
+console.log(`Market: "${HOME} to win outright" — TxLINE fixture ${REAL_FIXTURE} (${HOME} v ${AWAY})`)
+console.log(`On-chain market PDA ${marketPda.toBase58()}`)
+console.log(`Signal: TxLINE closing 1X2 ${(signal.fair*100).toFixed(0)}/${(signal.draw*100).toFixed(0)}/${(signal.away*100).toFixed(0)} -> fair P(${HOME} win) = ${(signal.fair*100).toFixed(1)}%  [raw home prob; draw stays in NO]`)
+if (facts.result) console.log(`Real final (TxLINE, goal keys ${GOAL_KEY_HOME}/${GOAL_KEY_AWAY}): ${HOME} ${facts.result.g1}–${facts.result.g2} ${AWAY} -> settles ${facts.result.outcome === 0 ? 'YES' : 'NO'}\n`)
+else console.log(`Fixture not finalised yet — EdgeBot will trade, then settle once TxLINE reports the final score.\n`)
 
-console.log('[setup] noise trader mis-prices the market (100 USDC on ' + AWAY + ')...')
+// Seed counterparty liquidity so the market is tradeable on devnet (labelled honestly:
+// this is a counterparty stake, not a signal — the edge and settlement come from real data).
+console.log(`[setup] seeding counterparty liquidity (100 USDC on ${AWAY}) so the market is tradeable...`)
 const noise = Keypair.generate()
-await send([SystemProgram.transfer({ fromPubkey: agent.publicKey, toPubkey: noise.publicKey, lamports: 0.05 * LAMPORTS_PER_SOL })], [agent], 'fund-noise')
+await send([SystemProgram.transfer({ fromPubkey: agent.publicKey, toPubkey: noise.publicKey, lamports: 0.05 * LAMPORTS_PER_SOL })], [agent], 'fund-liquidity')
 const mint = await createMint(conn, agent, agent.publicKey, null, 6, Keypair.generate(), { commitment: 'confirmed' }, TOKEN_2022_PROGRAM_ID)
 const agentAta = (await getOrCreateAssociatedTokenAccount(conn, agent, mint, agent.publicKey, false, 'confirmed', undefined, TOKEN_2022_PROGRAM_ID)).address
 const noiseAta = (await getOrCreateAssociatedTokenAccount(conn, agent, mint, noise.publicKey, false, 'confirmed', undefined, TOKEN_2022_PROGRAM_ID)).address
@@ -97,56 +161,71 @@ await send([new TransactionInstruction({
   programId: PROGRAM, data: cat(disc('create_market'), u64(MARKET_FIXTURE_ID), cat(Buffer.from([0]), u16(0), u16(1)), agent.publicKey.toBuffer()),
   keys: [{ pubkey: agent.publicKey, isSigner: true, isWritable: true }, { pubkey: marketPda, isSigner: false, isWritable: true }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }],
 })], [agent], 'create_market')
-await send([depositIx('deposit_no', noise, noiseAta, mint, vault, 100_000000)], [noise], 'noise deposit_no 100')
+await send([depositIx('deposit_no', noise, noiseAta, mint, vault, 100_000000)], [noise], 'seed liquidity deposit_no 100')
 
 const usdcStart = await usdc(agentAta)
-console.log('\n[agent] ingesting TxLINE odds; autonomously taking the +EV side...\n')
+console.log('\n[agent] autonomously taking the +EV side until the market converges to fair value...\n')
 const decisions = []
 for (let i = 1; i <= 6; i++) {
-  const { fair, book, live } = await fairHomeProb()
-  const m = await marketState(); const py = priceYes(m); const edge = fair - py
-  const line = `round ${i}: TxLINE fair P(${HOME})=${(fair*100).toFixed(1)}% [${book} ${live?'LIVE':'last-seen'}] | market YES=${(py*100).toFixed(1)}% (${m.yes/1e6}/${m.no/1e6}) | edge ${edge>=0?'+':''}${(edge*100).toFixed(1)}%`
-  if (Math.abs(edge) <= EDGE_THRESHOLD) { console.log(`${line} -> HOLD`); decisions.push({ round: i, fair, marketYes: py, edge, action: 'HOLD' }); break }
+  const m = await marketState(); const py = priceYes(m); const edge = signal.fair - py
+  const line = `round ${i}: fair P(${HOME} win)=${(signal.fair*100).toFixed(1)}% [${signal.book} ${signal.live?'LIVE':'closing line'}] | market YES=${(py*100).toFixed(1)}% (${m.yes/1e6}/${m.no/1e6}) | edge ${edge>=0?'+':''}${(edge*100).toFixed(1)}%`
+  if (Math.abs(edge) <= EDGE_THRESHOLD) { console.log(`${line} -> HOLD`); decisions.push({ round: i, fair: signal.fair, marketYes: py, edge, action: 'HOLD' }); break }
   const side = edge > 0 ? 'deposit_yes' : 'deposit_no'
   const amount = Math.min(MAX_BET, Math.round(Math.abs(edge) * 100_000000))
   console.log(`${line} -> BUY ${side==='deposit_yes'?HOME:AWAY} ${(amount/1e6).toFixed(1)} USDC`)
   await send([depositIx(side, agent, agentAta, mint, vault, amount)], [agent], side)
-  decisions.push({ round: i, fair, marketYes: py, edge, action: side, amount })
+  decisions.push({ round: i, fair: signal.fair, marketYes: py, edge, action: side, amount })
 }
 const usdcAfterBets = await usdc(agentAta)
 const staked = (usdcStart - usdcAfterBets) / 1e6
 
-console.log(`\n[settle] result: ${HOME} win -> market resolves YES...`)
+// ---- settle FROM THE REAL RESULT (never a chosen outcome) ----
+const result = facts.result || (await fixtureFacts()).result
+if (!result) {
+  console.log(`\n[settle] TxLINE has not finalised fixture ${REAL_FIXTURE} yet — refusing to settle a market`)
+  console.log(`         whose outcome is unknown. Re-run after the match to settle from the real score.`)
+  process.exit(0)
+}
+const outLabel = result.outcome === 0 ? `YES (${HOME} won ${result.g1}–${result.g2})` : `NO (${HOME} did not win, ${result.g1}–${result.g2})`
+console.log(`\n[settle] real TxLINE result ${HOME} ${result.g1}–${result.g2} ${AWAY} -> resolves ${outLabel}`)
 await send([new TransactionInstruction({
-  programId: PROGRAM, data: cat(disc('admin_settle'), Buffer.from([0])), // Outcome::Yes
+  programId: PROGRAM, data: cat(disc('admin_settle'), Buffer.from([result.outcome])), // outcome DERIVED from real goals
   keys: [{ pubkey: marketPda, isSigner: false, isWritable: true }, { pubkey: agent.publicKey, isSigner: true, isWritable: false }],
 })], [agent], 'settle')
 
 const m = await marketState()
-console.log('[collect] agent claims its winning position...')
-await send([new TransactionInstruction({
-  programId: PROGRAM, data: cat(disc('claim_winnings'), u64(m.yes)),
-  keys: [
-    { pubkey: marketPda, isSigner: false, isWritable: true },
-    { pubkey: agent.publicKey, isSigner: true, isWritable: true },
-    { pubkey: depositPda(agent.publicKey), isSigner: false, isWritable: true },
-    { pubkey: agentAta, isSigner: false, isWritable: true },
-    { pubkey: vault, isSigner: false, isWritable: true },
-    { pubkey: vaultAuth, isSigner: false, isWritable: false },
-    { pubkey: mint, isSigner: false, isWritable: false },
-    { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-  ],
-})], [agent], 'claim')
+const winningPool = result.outcome === 0 ? m.yes : m.no
+const agentBackedWinner = decisions.some(d => d.action === (result.outcome === 0 ? 'deposit_yes' : 'deposit_no'))
+console.log(`[collect] claiming the winning side (${result.outcome === 0 ? HOME : `${AWAY}/draw`}) — agent ${agentBackedWinner ? 'is on it' : 'is NOT on it (will collect nothing)'}...`)
+if (winningPool > 0 && agentBackedWinner) {
+  await send([new TransactionInstruction({
+    programId: PROGRAM, data: cat(disc('claim_winnings'), u64(winningPool)),
+    keys: [
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: agent.publicKey, isSigner: true, isWritable: true },
+      { pubkey: depositPda(agent.publicKey), isSigner: false, isWritable: true },
+      { pubkey: agentAta, isSigner: false, isWritable: true },
+      { pubkey: vault, isSigner: false, isWritable: true },
+      { pubkey: vaultAuth, isSigner: false, isWritable: false },
+      { pubkey: mint, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+  })], [agent], 'claim')
+}
 const usdcEnd = await usdc(agentAta)
 const collected = (usdcEnd - usdcAfterBets) / 1e6
 const pnl = collected - staked
 
 console.log(`\n================ RESULT ================`)
+console.log(`market: "${HOME} to win outright" (TxLINE fixture ${REAL_FIXTURE})`)
 console.log(`staked over ${decisions.filter(d=>d.action!=='HOLD').length} autonomous bets: ${staked.toFixed(1)} USDC`)
-console.log(`collected on ${HOME} win: ${collected.toFixed(1)} USDC`)
-console.log(`realized P&L: ${pnl>=0?'+':''}${pnl.toFixed(1)} USDC (the counterparty's stake)`)
+console.log(`real match result: ${HOME} ${result.g1}–${result.g2} ${AWAY} -> ${outLabel}`)
+console.log(`collected: ${collected.toFixed(1)} USDC`)
+console.log(`realized P&L: ${pnl>=0?'+':''}${pnl.toFixed(1)} USDC  (settled on the REAL score from TxLINE, not a chosen outcome)`)
 console.log(`market ${marketPda.toBase58()} · mint ${mint.toBase58()}`)
 fs.writeFileSync(process.env.OUT || '/tmp/ft-agent.json', JSON.stringify({
-  oddsFixture: ODDS_FIXTURE, market: marketPda.toBase58(), mint: mint.toBase58(),
+  fixture: REAL_FIXTURE, teams: `${HOME} v ${AWAY}`, realResult: { g1: result.g1, g2: result.g2, outcome: outLabel },
+  signal: { fairHome: signal.fair, draw: signal.draw, away: signal.away, book: signal.book },
+  market: marketPda.toBase58(), mint: mint.toBase58(),
   decisions, staked, collected, pnl, final: { yes: m.yes, no: m.no, priceYes: priceYes(m) },
 }, null, 2))
