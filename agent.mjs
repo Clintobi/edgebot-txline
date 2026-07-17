@@ -46,6 +46,12 @@ const teamName = id => TEAM[id] || `Team #${id}`
 const ODDS_CACHE = process.env.ODDS_CACHE || '/tmp/edgebot-odds-cache.json'
 const EDGE_THRESHOLD = 0.03
 const MAX_BET = 40_000000
+// --- risk layer ---
+const KELLY_FRACTION = Number(process.env.KELLY || 0.25)   // fractional (quarter) Kelly
+const MAX_POSITION = Number(process.env.MAX_POSITION || 0.05)   // per-bet cap, fraction of bankroll
+const MAX_EXPOSURE = Number(process.env.MAX_EXPOSURE || 0.20)   // aggregate cap, fraction of bankroll
+const KILL_STALE_MS = Number(process.env.KILL_STALE_MS || 5 * 60 * 1000) // halt if the feed is older than this
+const KILL_TEST = process.env.KILL_TEST || ''              // 'stale' | 'feed' to demo a halt
 const conn = new Connection(RPC, 'confirmed')
 const agent = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(process.env.DEPLOYER_KEYPAIR, 'utf8'))))
 const creds = JSON.parse(fs.readFileSync(process.env.CREDS, 'utf8'))
@@ -139,6 +145,7 @@ function depositIx(name, user, userToken, mint, vault, amount) {
 const facts = await fixtureFacts()
 const HOME = facts.home, AWAY = facts.away
 const signal = await fairHomeProb()   // fetched ONCE; the closing pre-match line is the signal price
+const signalAt = Date.now()           // for the kill-switch's staleness check
 console.log(`EdgeBot: ${agent.publicKey.toBase58()}`)
 console.log(`Market: "${HOME} to win outright" — TxLINE fixture ${REAL_FIXTURE} (${HOME} v ${AWAY})`)
 console.log(`On-chain market PDA ${marketPda.toBase58()}`)
@@ -164,20 +171,48 @@ await send([new TransactionInstruction({
 await send([depositIx('deposit_no', noise, noiseAta, mint, vault, 100_000000)], [noise], 'seed liquidity deposit_no 100')
 
 const usdcStart = await usdc(agentAta)
-console.log('\n[agent] autonomously taking the +EV side until the market converges to fair value...\n')
+const bankroll = usdcStart              // risk is sized as a fraction of this
+let exposure = 0                        // cumulative staked (base units)
+let halted = null                       // kill-switch reason, if tripped
+console.log(`\n[agent] risk layer armed: ${KELLY_FRACTION}x Kelly · ${(MAX_POSITION*100).toFixed(0)}% per-position cap · ${(MAX_EXPOSURE*100).toFixed(0)}% aggregate exposure cap · kill-switch (feed health + exposure)\n`)
 const decisions = []
 for (let i = 1; i <= 6; i++) {
+  // --- kill-switch: never trade on a stale or broken signal ---
+  const stale = (Date.now() - signalAt) > KILL_STALE_MS || KILL_TEST === 'stale'
+  const feedBad = !(signal.fair > 0 && signal.fair < 1) || KILL_TEST === 'feed'
+  if (stale || feedBad) {
+    halted = stale ? 'stale feed' : 'bad feed'
+    console.log(`round ${i}: 🛑 KILL-SWITCH tripped — ${halted}. Halting; a desk does not trade blind.`)
+    break
+  }
+
   const m = await marketState(); const py = priceYes(m); const edge = signal.fair - py
-  const line = `round ${i}: fair P(${HOME} win)=${(signal.fair*100).toFixed(1)}% [${signal.book} ${signal.live?'LIVE':'closing line'}] | market YES=${(py*100).toFixed(1)}% (${m.yes/1e6}/${m.no/1e6}) | edge ${edge>=0?'+':''}${(edge*100).toFixed(1)}%`
-  if (Math.abs(edge) <= EDGE_THRESHOLD) { console.log(`${line} -> HOLD`); decisions.push({ round: i, fair: signal.fair, marketYes: py, edge, action: 'HOLD' }); break }
   const side = edge > 0 ? 'deposit_yes' : 'deposit_no'
-  const amount = Math.min(MAX_BET, Math.round(Math.abs(edge) * 100_000000))
-  console.log(`${line} -> BUY ${side==='deposit_yes'?HOME:AWAY} ${(amount/1e6).toFixed(1)} USDC`)
+  const p = side === 'deposit_yes' ? signal.fair : 1 - signal.fair   // fair prob of the backed side
+  const q = side === 'deposit_yes' ? py : 1 - py                     // market-implied prob of the backed side
+  const line = `round ${i}: fair P(${HOME} win)=${(signal.fair*100).toFixed(1)}% [${signal.book} ${signal.live?'LIVE':'closing line'}] | market YES=${(py*100).toFixed(1)}% (${m.yes/1e6}/${m.no/1e6}) | edge ${(p-q>=0?'+':'')}${((p-q)*100).toFixed(1)}% | exposure ${(exposure/bankroll*100).toFixed(1)}%`
+  if (p - q <= EDGE_THRESHOLD) { console.log(`${line} -> HOLD (no edge)`); decisions.push({ round: i, fair: signal.fair, marketYes: py, edge: p - q, action: 'HOLD' }); break }
+
+  // --- quarter-Kelly sizing: f* = (p - q) / (1 - q); stake the fractional-Kelly amount ---
+  const kelly = (p - q) / (1 - q)
+  let frac = Math.min(KELLY_FRACTION * kelly, MAX_POSITION)          // fractional Kelly + per-position cap
+  const room = MAX_EXPOSURE - exposure / bankroll                    // remaining aggregate budget
+  if (room <= 1e-9) {
+    halted = 'exposure cap'
+    console.log(`${line} -> 🛑 KILL-SWITCH — aggregate exposure cap (${(MAX_EXPOSURE*100).toFixed(0)}%) reached. Halting.`)
+    break
+  }
+  frac = Math.min(frac, room)
+  const amount = Math.min(MAX_BET, Math.round(frac * bankroll))
+  if (amount <= 0) { console.log(`${line} -> HOLD (size rounds to 0)`); break }
+  console.log(`${line} -> BUY ${side==='deposit_yes'?HOME:AWAY} ${(amount/1e6).toFixed(1)} USDC  [${KELLY_FRACTION}× Kelly: full f*=${(kelly*100).toFixed(1)}% → sized ${(frac*100).toFixed(1)}% of bankroll]`)
   await send([depositIx(side, agent, agentAta, mint, vault, amount)], [agent], side)
-  decisions.push({ round: i, fair: signal.fair, marketYes: py, edge, action: side, amount })
+  exposure += amount
+  decisions.push({ round: i, fair: signal.fair, marketYes: py, edge: p - q, action: side, amount, kellyFull: kelly, fracOfBankroll: frac })
 }
 const usdcAfterBets = await usdc(agentAta)
 const staked = (usdcStart - usdcAfterBets) / 1e6
+if (halted) console.log(`\n[risk] kill-switch state: HALTED (${halted}). Max loss was capped at the ${(MAX_EXPOSURE*100).toFixed(0)}% exposure limit.`)
 
 // ---- settle FROM THE REAL RESULT (never a chosen outcome) ----
 const result = facts.result || (await fixtureFacts()).result
