@@ -7,7 +7,7 @@ compares it to an **on-chain prediction market's pool-implied price**, and
 **autonomously stakes USDC on the mispriced (+EV) side** — no manual input. It
 re-evaluates in a loop and stops when the market has converged to fair value.
 
-**Dashboard (application access):** _(deployed URL below)_
+**Dashboard (application access):** https://edgebot-txline.vercel.app
 
 ## Signal → decision → execution
 
