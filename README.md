@@ -25,21 +25,30 @@ runs and executes with no human in the loop.
 
 ## Live demo (devnet)
 
-A noise trader mispriced a Spain-vs-Argentina market to **YES = 20%** while
-TxLINE's fair price was **61.5%**. EdgeBot corrected it over 6 on-chain rounds,
-sizing each bet to the shrinking edge (20% → 58%):
+A noise trader mispriced a Spain-vs-Argentina market to **YES = 0%** (all stake on
+Argentina) while TxLINE's fair price for Spain was **61.5%**. EdgeBot corrected it
+over 6 on-chain rounds, sizing each bet to the shrinking edge:
 
-| round | fair | market | edge | action |
+| round | fair | market YES | edge | action |
 |---|---|---|---|---|
-| 1 | 61.5% | 20.0% | +41.5% | BUY 40 |
-| 2 | 61.5% | 42.9% | +18.7% | BUY 18.7 |
-| 3 | 61.5% | 49.6% | +11.9% | BUY 11.9 |
-| 4 | 61.5% | 53.1% | +8.4% | BUY 8.4 |
-| 5 | 61.5% | 55.3% | +6.2% | BUY 6.2 |
-| 6 | 61.5% | 56.8% | +4.7% | BUY 4.7 |
+| 1 | 61.5% | 0.0% | +61.5% | BUY 40 |
+| 2 | 61.5% | 28.6% | +33.0% | BUY 33 |
+| 3 | 61.5% | 42.2% | +19.3% | BUY 19.3 |
+| 4 | 61.5% | 48.0% | +13.5% | BUY 13.5 |
+| 5 | 61.5% | 51.4% | +10.1% | BUY 10.1 |
+| 6 | 61.5% | 53.7% | +7.8% | BUY 7.8 |
 
-Execution venue (on-chain market program): `37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW` (devnet).
-Sample execution: [`3rZoUE…`](https://explorer.solana.com/tx/3rZoUEU3r7GDjYjvzC737fxWVmbS22r8H8oYrcuTVJuhLSKc11GhAYoXjsha7HZQTGpXgTCj1q4rTZ59RQBYB8Lz?cluster=devnet).
+**Then it closes the loop.** The match resolves Spain-win, the market settles, and
+the agent collects:
+
+```
+staked (6 autonomous bets):  123.8 USDC
+collected on win:            223.8 USDC
+realized P&L:               +100.0 USDC   ← the counterparty's stake
+```
+
+Signal → autonomous execution → settlement → **realized profit**. Execution venue:
+[`37Gjug…9vTW`](https://explorer.solana.com/address/37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW?cluster=devnet) (devnet) · live dashboard: https://edgebot-txline.vercel.app
 
 ## TxLINE endpoints used
 

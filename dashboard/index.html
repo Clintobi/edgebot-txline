@@ -48,6 +48,7 @@
 
   <h2>Last autonomous run</h2>
   <div id="meta" class="sub" style="font-size:13px">loading…</div>
+  <div id="pnl" class="grid" style="margin-top:14px"></div>
   <table id="tbl"><thead><tr><th>Round</th><th>Fair P(home)</th><th>Market YES</th><th>Edge</th><th>Action</th></tr></thead><tbody></tbody></table>
 
   <p class="foot">
@@ -60,6 +61,10 @@ fetch('./last-run.json').then(r=>r.json()).then(d=>{
   const pct = x => (x*100).toFixed(1)+'%';
   document.getElementById('meta').innerHTML =
     `market <a href="https://explorer.solana.com/address/${d.market}?cluster=devnet">${d.market.slice(0,6)}…</a> · odds fixture ${d.oddsFixture} · final YES ${pct(d.final.priceYes)} (converged toward fair value)`;
+  if (typeof d.pnl === 'number') document.getElementById('pnl').innerHTML =
+    `<div class="card"><div class="k">Staked (autonomous)</div><div class="v">${d.staked.toFixed(1)} USDC</div></div>
+     <div class="card"><div class="k">Collected on win</div><div class="v">${d.collected.toFixed(1)} USDC</div></div>
+     <div class="card"><div class="k">Realized P&amp;L</div><div class="v buy">+${d.pnl.toFixed(1)} USDC</div></div>`;
   const tb = document.querySelector('#tbl tbody');
   d.decisions.forEach(x=>{
     const buy = x.action !== 'HOLD';

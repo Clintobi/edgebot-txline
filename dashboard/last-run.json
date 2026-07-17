@@ -1,60 +1,63 @@
 {
   "oddsFixture": 18257739,
-  "market": "EEkYJFPHgRUPRYH6Z6BwDwZkLwffRiMnTckTPXRp4bGT",
-  "mint": "6EgrCea5dnaQbQzcokSMet5hhFgjJXno5cJ8NUcXPfpf",
+  "market": "2wHTLiedkMfjSqKJvgTQCTZH6Kc2fRNmLsEWcQarfB8J",
+  "mint": "EhX72JmHefSnKDD5TSaajsvNYpYg1U9YP8wPfaJDPSrA",
   "decisions": [
     {
       "round": 1,
       "fair": 0.615296222490509,
-      "marketYes": 0.2,
-      "edge": 0.41529622249050896,
+      "marketYes": 0,
+      "edge": 0.615296222490509,
       "action": "deposit_yes",
       "amount": 40000000
     },
     {
       "round": 2,
       "fair": 0.615296222490509,
-      "marketYes": 0.42857142857142855,
-      "edge": 0.18672479391908042,
+      "marketYes": 0.2857142857142857,
+      "edge": 0.32958193677622327,
       "action": "deposit_yes",
-      "amount": 18672479
+      "amount": 32958194
     },
     {
       "round": 3,
       "fair": 0.615296222490509,
-      "marketYes": 0.4958167887450728,
-      "edge": 0.11947943374543618,
+      "marketYes": 0.42182560023724575,
+      "edge": 0.19347062225326322,
       "action": "deposit_yes",
-      "amount": 11947943
+      "amount": 19347062
     },
     {
       "round": 4,
       "fair": 0.615296222490509,
-      "marketYes": 0.5311229508036266,
-      "edge": 0.08417327168688238,
+      "marketYes": 0.4799934121405397,
+      "edge": 0.13530281034996927,
       "action": "deposit_yes",
-      "amount": 8417327
+      "amount": 13530281
     },
     {
       "round": 5,
       "fair": 0.615296222490509,
-      "marketYes": 0.5531668575658868,
-      "edge": 0.06212936492462218,
+      "marketYes": 0.5141752417610959,
+      "edge": 0.10112098072941311,
       "action": "deposit_yes",
-      "amount": 6212936
+      "amount": 10112098
     },
     {
       "round": 6,
       "fair": 0.615296222490509,
-      "marketYes": 0.5681527439426203,
-      "edge": 0.047143478547888695,
+      "marketYes": 0.5369247734526011,
+      "edge": 0.07837144903790783,
       "action": "deposit_yes",
-      "amount": 4714348
+      "amount": 7837145
     }
   ],
+  "staked": 123.78478,
+  "collected": 223.78478,
+  "pnl": 100.00000000000001,
   "final": {
-    "yes": 109965033,
-    "no": 80000000,
-    "priceYes": 0.5788698649608847
+    "yes": 123784780,
+    "no": 100000000,
+    "priceYes": 0.5531420858916322
   }
 }
