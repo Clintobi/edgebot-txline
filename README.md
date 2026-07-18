@@ -64,7 +64,7 @@ realized P&L:               +100.0 USDC   ← settled on the REAL score from TxL
 
 The agent only profits because the side it staked (Argentina) matched the real
 result. Ask "how do you know it won?" → "TxLINE's finalised score says 3–2."
-Execution venue: [`37Gjug…9vTW`](https://explorer.solana.com/address/37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW?cluster=devnet)
+Execution venue: [`AfvTru…DbD8`](https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet)
 (devnet) · live dashboard: https://edgebot-txline.vercel.app
 
 ## Proven edge — CLV backtest (`backtest.mjs`)

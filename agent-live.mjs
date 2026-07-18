@@ -23,7 +23,7 @@ import fs from 'fs'
 import { fractionalKelly } from './lib.mjs'
 
 const RPC = 'https://api.devnet.solana.com', API = 'https://txline-dev.txodds.com'
-const PROGRAM = new PublicKey('37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW')
+const PROGRAM = new PublicKey('AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8')
 const TXLINE = new PublicKey('6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J')
 const FIXTURE = Number(process.env.FIXTURE || 18185036)
 const KELLY_FRACTION = 0.25, MAX_POSITION = 0.05, MAX_EXPOSURE = 0.20, MAX_BET = 40_000000, EDGE_THRESHOLD = 0.03

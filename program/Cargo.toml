@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "programs/*"
+]
+
+[workspace.package]
+version = "0.1.0"
+license = "Apache-2.0"
+edition = "2021"
+
+# Anchor requires overflow-checks at the workspace root; also a good safety
+# default (arithmetic overflow panics rather than wrapping).
+[profile.release]
+overflow-checks = true

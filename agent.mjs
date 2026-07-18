@@ -30,7 +30,7 @@ import fs from 'fs'
 
 const RPC = 'https://api.devnet.solana.com'
 const API = 'https://txline-dev.txodds.com'
-const PROGRAM = new PublicKey('37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW')
+const PROGRAM = new PublicKey('AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8')
 const TXLINE = new PublicKey('6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J')  // TxLINE oracle — settlement is a CPI to its validate_stat
 // The real TxLINE fixture EdgeBot trades AND settles against. Default: a finished
 // fixture so the full loop is demonstrable end to end right now.

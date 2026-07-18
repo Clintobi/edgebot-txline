@@ -5,3 +5,6 @@ deployer.json
 program.json
 txline-creds.json
 .env*
+program/target/
+program/.anchor/
+.DS_Store
