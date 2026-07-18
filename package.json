@@ -9,7 +9,8 @@
     "agent": "node agent.mjs",
     "backtest": "node backtest.mjs",
     "test": "vitest run",
-    "judge:verify": "node verify.mjs"
+    "judge:verify": "node verify.mjs",
+    "quant": "node quant-study.mjs"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

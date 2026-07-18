@@ -89,6 +89,28 @@ This is deliberately the *same* honest posture as the strongest competing agents
 statistically significant CLV at this sample — the difference is that our edge sits on top of
 **real on-chain capital execution**, which the paper-only agents don't have.
 
+## Full quant dossier (`quant-study.mjs` · `npm run quant`)
+
+The backtest above is the headline; `npm run quant` is the rigour a TxODDS quant will actually
+probe. Everything is either measured on the real fixtures or a **seeded Monte-Carlo on a model
+fit to real data and validated against it** before any conclusion is drawn:
+
+- **Calibration (real):** Brier **0.193** vs 0.240 (skill **+0.195**); Murphy decomposition
+  (reliability 0.063 / resolution 0.109 / uncertainty 0.240); logistic calibration slope **0.89**.
+- **Model validation:** drawing outcomes `~Bernoulli(close)` reproduces Brier **0.177 vs 0.193** —
+  the gap *is* the measured small-sample miscalibration, so the simulator is faithful, not tuned.
+- **Large-N (synthetic, labelled):** 50k markets → mean CLV **+8.89pp**, 95% CI [+8.85, +8.93]
+  (clears zero); P&L **+1.93pp/bet**.
+- **Power analysis — the honest core:** real N=20 has only **10.5% power**, so a non-significant
+  result is *expected*, not evidence of no edge. Confirming it needs **N≈200** finished fixtures —
+  which the gated free-tier endpoints don't allow, the same ceiling for every competitor.
+- **Kelly study:** quarter-Kelly captures **81%** of full-Kelly log-growth with **0% ruin** and
+  ~40% less drawdown — the empirical justification for the shipped sizing.
+- **Sensitivity:** log-growth is positive across every edge-threshold × Kelly-fraction cell.
+
+Visual dossier (charts): the "EdgeBot — Quant Dossier" page. Reproduce it all locally with
+`npm run quant` — seeded, no keys, deterministic.
+
 ## Trading a market it didn't make (`agent-live.mjs`)
 
 The seeded-liquidity demo above is a controlled showcase; this is the answer to *"is that a
@@ -151,14 +173,19 @@ DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json REAL_FIXTURE=18179549 KIL
 Because both the odds tick history and the finalised score stay available after a
 match, one run reproduces the whole signal → settle loop for any finished fixture.
 
-## Settlement integrity
+## Settlement integrity — trustless by default
 
-EdgeBot currently settles via `admin_settle(realOutcome)` where `realOutcome` is
-**derived from TxLINE's finalised score**, so the agent can never pay itself on an
-invented result. The stronger form — routing settlement through the on-chain
-`validate_stat` Merkle-proof CPI so *anyone* can verify the outcome trustlessly —
-is the Track-1 (`fulltime-prediction-markets`) settle path; EdgeBot consumes the
-same TxLINE result data.
+EdgeBot settles through the on-chain **`validate_stat` Merkle-proof CPI**: the program
+proves the two goal stats (keys `1`,`2`) against TxLINE's oracle and **derives the winner
+from that proof**. The agent never passes a chosen outcome, the call needs no admin
+authority (**anyone can settle**), and if no full-time (period 100) proof exists yet it
+**refuses to settle**. This is the same trustless path Track 1
+(`fulltime-prediction-markets`) uses — EdgeBot now runs it as its own default, so the
+main `agent.mjs` loop, not just the `agent-live.mjs` showcase, closes the loop trustlessly.
+
+Because the proof binds a market to its real fixture, proof-settle markets are **single-use
+per fixture** (a settled real event can't be re-opened) and the market is seeded by the
+real TxLINE fixture id.
 
 ## Roadmap
 

@@ -6,9 +6,10 @@
 // Honesty model (what a TxODDS engineer will check):
 //  - Fair prob is the RAW 1X2 home-win probability (draw belongs in NO), not a
 //    two-way renormalization that inflates the favorite.
-//  - The settlement outcome is DERIVED from TxLINE's finalised score (stat keys
-//    1,2 = the two teams' goals), fetched at settle time. The agent never passes
-//    a literal outcome; if the match is not finalised it refuses to settle.
+//  - Settlement is TRUSTLESS: a CPI to TxLINE's validate_stat proves the two goal
+//    stats (keys 1,2) on-chain and the program derives the winner from that Merkle
+//    proof. The agent never passes a literal outcome; anyone can settle; if no
+//    full-time proof exists yet it refuses to settle.
 //  - The seeded counterparty is honestly labelled liquidity to make the devnet
 //    market tradeable — the P&L rests on the real result, not on that stake.
 //
@@ -18,7 +19,7 @@
 // Spain v Argentina (18257739) and run it once those matches finish.
 import {
   Connection, Keypair, PublicKey, SystemProgram, Transaction,
-  TransactionInstruction, sendAndConfirmTransaction, LAMPORTS_PER_SOL,
+  TransactionInstruction, sendAndConfirmTransaction, ComputeBudgetProgram, LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
 import {
   TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -30,11 +31,14 @@ import fs from 'fs'
 const RPC = 'https://api.devnet.solana.com'
 const API = 'https://txline-dev.txodds.com'
 const PROGRAM = new PublicKey('37GjugP2yXMbuGNZTu6XSf1wsbegyXfMXGvGVKpX9vTW')
+const TXLINE = new PublicKey('6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J')  // TxLINE oracle — settlement is a CPI to its validate_stat
 // The real TxLINE fixture EdgeBot trades AND settles against. Default: a finished
 // fixture so the full loop is demonstrable end to end right now.
 const REAL_FIXTURE = Number(process.env.REAL_FIXTURE || 18202701)
-// Unique on-chain market per run (re-runnable); the market tracks REAL_FIXTURE.
-const MARKET_FIXTURE_ID = BigInt(process.env.MARKET_NONCE || Date.now())
+// The market is SEEDED BY THE REAL FIXTURE ID, so the trustless proof-settle (a CPI to
+// validate_stat) binds this market to that fixture's real result. Proof-settle markets
+// are single-use per fixture (a settled real event can't be re-opened).
+const MARKET_FIXTURE_ID = BigInt(REAL_FIXTURE)
 const GOAL_KEY_HOME = '1', GOAL_KEY_AWAY = '2'   // TxLINE stat keys: the two teams' goals
 // Verified TxLINE participant-id -> name map for this devnet World Cup dataset.
 const TEAM = {
@@ -60,8 +64,17 @@ const EX = s => `https://explorer.solana.com/tx/${s}?cluster=devnet`
 
 const disc = n => createHash('sha256').update(`global:${n}`).digest().subarray(0, 8)
 const u64 = n => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b }
+const i64 = n => { const b = Buffer.alloc(8); b.writeBigInt64LE(BigInt(n)); return b }
+const i32 = n => { const b = Buffer.alloc(4); b.writeInt32LE(n); return b }
+const u32 = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b }
 const u16 = n => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b }
+const b32 = a => Buffer.from(a)
 const cat = (...a) => Buffer.concat(a.map(x => Buffer.isBuffer(x) ? x : Buffer.from(x)))
+// Merkle-proof arg encoding for the trustless settle CPI (mirrors TxLINE's validate_stat layout).
+const vec = (arr, e) => cat(u32(arr.length), ...arr.map(e))
+const pn = n => cat(b32(n.hash), Buffer.from([n.isRightSibling ? 1 : 0]))
+const ss = s => cat(u32(s.key), i32(s.value), i32(s.period))
+const st = (stat, root, prf) => cat(ss(stat), b32(root), vec(prf, pn))
 
 const [marketPda] = PublicKey.findProgramAddressSync([Buffer.from('market'), u64(MARKET_FIXTURE_ID)], PROGRAM)
 const [vaultAuth] = PublicKey.findProgramAddressSync([Buffer.from('vault'), marketPda.toBuffer()], PROGRAM)
@@ -112,6 +125,24 @@ async function fixtureFacts() {
   return { home, away, result }
 }
 
+// Fetch a FULL-TIME (period 100) Merkle proof for the two goal stats from TxLINE. This is
+// what makes settlement trustless: the winner is derived on-chain from this proof, not typed in.
+async function finalProof() {
+  const rows = await tx(`/scores/snapshot/${REAL_FIXTURE}`)
+  const seqs = [...new Set(rows.map(r => r.Seq).filter(x => x != null))].sort((a, b) => b - a)
+  for (const s of seqs.slice(0, 20)) {
+    const p = await tx(`/scores/stat-validation?fixtureId=${REAL_FIXTURE}&seq=${s}&statKeys=${GOAL_KEY_HOME},${GOAL_KEY_AWAY}`).catch(() => null)
+    if (p && p.statsToProve?.every(x => x.period === 100)) return p
+  }
+  return null
+}
+// Serialize the proof exactly as validate_stat expects. NOTE: the top-level ts MUST be
+// summary.updateStats.minTimestamp (not proof.ts), or the CPI reverts with TimestampMismatch.
+function encodeArgs(p) {
+  const summary = cat(i64(p.summary.fixtureId), cat(i32(p.summary.updateStats.updateCount), i64(p.summary.updateStats.minTimestamp), i64(p.summary.updateStats.maxTimestamp)), b32(p.summary.eventStatsSubTreeRoot))
+  return cat(i64(p.summary.updateStats.minTimestamp), summary, vec(p.subTreeProof, pn), vec(p.mainTreeProof, pn), cat(i32(0), Buffer.from([0])), st(p.statsToProve[0], p.eventStatRoot, p.statProofs[0]), cat(Buffer.from([1]), st(p.statsToProve[1], p.eventStatRoot, p.statProofs[1])), cat(Buffer.from([1]), Buffer.from([1])))
+}
+
 async function send(ixs, signers, label) {
   const s = await sendAndConfirmTransaction(conn, new Transaction().add(...ixs), signers, { commitment: 'confirmed' })
   console.log(`     tx ${label}: ${EX(s)}`); return s
@@ -153,6 +184,10 @@ console.log(`Signal: TxLINE closing 1X2 ${(signal.fair*100).toFixed(0)}/${(signa
 if (facts.result) console.log(`Real final (TxLINE, goal keys ${GOAL_KEY_HOME}/${GOAL_KEY_AWAY}): ${HOME} ${facts.result.g1}–${facts.result.g2} ${AWAY} -> settles ${facts.result.outcome === 0 ? 'YES' : 'NO'}\n`)
 else console.log(`Fixture not finalised yet — EdgeBot will trade, then settle once TxLINE reports the final score.\n`)
 
+// Proof-settle markets are single-use per fixture (the market is seeded by REAL_FIXTURE so
+// the on-chain proof binds to it). If one already exists, this fixture is spent.
+if (await conn.getAccountInfo(marketPda)) throw new Error(`a market for fixture ${REAL_FIXTURE} already exists — trustless proof-settle is single-use per fixture; point REAL_FIXTURE at a fresh finished fixture.`)
+
 // Seed counterparty liquidity so the market is tradeable on devnet (labelled honestly:
 // this is a counterparty stake, not a signal — the edge and settlement come from real data).
 console.log(`[setup] seeding counterparty liquidity (100 USDC on ${AWAY}) so the market is tradeable...`)
@@ -165,7 +200,7 @@ await mintTo(conn, agent, mint, agentAta, agent, 1000_000000, [], { commitment: 
 await mintTo(conn, agent, mint, noiseAta, agent, 200_000000, [], { commitment: 'confirmed' }, TOKEN_2022_PROGRAM_ID)
 const vault = getAssociatedTokenAddressSync(mint, vaultAuth, true, TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID)
 await send([new TransactionInstruction({
-  programId: PROGRAM, data: cat(disc('create_market'), u64(MARKET_FIXTURE_ID), cat(Buffer.from([0]), u16(0), u16(1)), agent.publicKey.toBuffer()),
+  programId: PROGRAM, data: cat(disc('create_market'), u64(MARKET_FIXTURE_ID), cat(Buffer.from([0]), u16(1), u16(2)), agent.publicKey.toBuffer()),  // goal stat keys 1,2 — must match the proof-settle
   keys: [{ pubkey: agent.publicKey, isSigner: true, isWritable: true }, { pubkey: marketPda, isSigner: false, isWritable: true }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }],
 })], [agent], 'create_market')
 await send([depositIx('deposit_no', noise, noiseAta, mint, vault, 100_000000)], [noise], 'seed liquidity deposit_no 100')
@@ -214,19 +249,35 @@ const usdcAfterBets = await usdc(agentAta)
 const staked = (usdcStart - usdcAfterBets) / 1e6
 if (halted) console.log(`\n[risk] kill-switch state: HALTED (${halted}). Max loss was capped at the ${(MAX_EXPOSURE*100).toFixed(0)}% exposure limit.`)
 
-// ---- settle FROM THE REAL RESULT (never a chosen outcome) ----
-const result = facts.result || (await fixtureFacts()).result
-if (!result) {
-  console.log(`\n[settle] TxLINE has not finalised fixture ${REAL_FIXTURE} yet — refusing to settle a market`)
-  console.log(`         whose outcome is unknown. Re-run after the match to settle from the real score.`)
+// ---- TRUSTLESS SETTLE: a CPI to validate_stat derives the winner from TxLINE's real
+//      Merkle proof. No admin, no chosen outcome — anyone can settle, and the program
+//      only accepts the result the on-chain proof proves. ----
+const proof = await finalProof()
+if (!proof) {
+  console.log(`\n[settle] TxLINE has no full-time (period 100) proof for fixture ${REAL_FIXTURE} yet — refusing to settle`)
+  console.log(`         a market whose outcome is not yet provable on-chain. Re-run after the match to proof-settle.`)
   process.exit(0)
 }
+const result = { g1: Number(proof.statsToProve[0].value), g2: Number(proof.statsToProve[1].value) }
+result.outcome = result.g1 > result.g2 ? 0 : 1   // 0 = Yes (home win), 1 = No — DERIVED FROM THE PROOF
 const outLabel = result.outcome === 0 ? `YES (${HOME} won ${result.g1}–${result.g2})` : `NO (${HOME} did not win, ${result.g1}–${result.g2})`
-console.log(`\n[settle] real TxLINE result ${HOME} ${result.g1}–${result.g2} ${AWAY} -> resolves ${outLabel}`)
-await send([new TransactionInstruction({
-  programId: PROGRAM, data: cat(disc('admin_settle'), Buffer.from([result.outcome])), // outcome DERIVED from real goals
-  keys: [{ pubkey: marketPda, isSigner: false, isWritable: true }, { pubkey: agent.publicKey, isSigner: true, isWritable: false }],
-})], [agent], 'settle')
+console.log(`\n[settle] permissionless proof-settle — outcome DERIVED ON-CHAIN from TxLINE's Merkle proof, not chosen`)
+console.log(`         real TxLINE result ${HOME} ${result.g1}–${result.g2} ${AWAY} -> resolves ${outLabel}`)
+const day = Math.floor(proof.summary.updateStats.minTimestamp / 86_400_000)
+const dayB = Buffer.alloc(2); dayB.writeUInt16LE(day & 0xffff)
+const roots = PublicKey.findProgramAddressSync([Buffer.from('daily_scores_roots'), dayB], TXLINE)[0]
+await send([
+  ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }),
+  new TransactionInstruction({
+    programId: PROGRAM, data: cat(disc('settle'), encodeArgs(proof)),
+    keys: [
+      { pubkey: marketPda, isSigner: false, isWritable: true },
+      { pubkey: agent.publicKey, isSigner: true, isWritable: false },   // any signer — settle is permissionless
+      { pubkey: TXLINE, isSigner: false, isWritable: false },
+      { pubkey: roots, isSigner: false, isWritable: false },
+    ],
+  }),
+], [agent], 'proof-settle')
 
 const m = await marketState()
 const winningPool = result.outcome === 0 ? m.yes : m.no
