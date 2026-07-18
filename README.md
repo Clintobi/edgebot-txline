@@ -89,6 +89,25 @@ This is deliberately the *same* honest posture as the strongest competing agents
 statistically significant CLV at this sample — the difference is that our edge sits on top of
 **real on-chain capital execution**, which the paper-only agents don't have.
 
+## Trading a market it didn't make (`agent-live.mjs`)
+
+The seeded-liquidity demo above is a controlled showcase; this is the answer to *"is that a
+real market?"* `agent-live.mjs` splits the actors into two independent on-chain wallets: an
+**operator** ("the house") creates the market and provides the opposing liquidity, and
+**EdgeBot** — its own wallet — only reads the price, sizes with Kelly, and takes the +EV side.
+Settlement is a **permissionless proof-settle** (CPI to `validate_stat`), so no one types in
+the outcome.
+
+Verified on devnet (fixture 18185036, home an 18% underdog that lost 0–3): the operator seeded
+the home side; EdgeBot's model priced the home win at 16%, saw the market grossly overpricing
+it, and took **NO** across five quarter-Kelly bets to a 20% exposure cap; the market settled
+**NO** from the TxLINE proof; EdgeBot claimed **+100 USDC** — trading a market it did not
+create, against an independent counterparty (two distinct wallets, both on Explorer).
+
+```bash
+OPERATOR_KEYPAIR=deployer.json CREDS=txline-creds.json FIXTURE=<fresh finished fixture> node agent-live.mjs
+```
+
 ## Verify it yourself — no trust required
 
 ```bash
