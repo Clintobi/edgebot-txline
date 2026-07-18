@@ -1,63 +1,77 @@
 {
-  "oddsFixture": 18257739,
-  "market": "2wHTLiedkMfjSqKJvgTQCTZH6Kc2fRNmLsEWcQarfB8J",
-  "mint": "EhX72JmHefSnKDD5TSaajsvNYpYg1U9YP8wPfaJDPSrA",
+  "fixture": 18202701,
+  "teams": "Argentina v Team #1867",
+  "realResult": {
+    "g1": 3,
+    "g2": 2,
+    "outcome": "YES (Argentina won 3–2)"
+  },
+  "signal": {
+    "fairHome": 0.72464,
+    "draw": 0.19425,
+    "away": 0.08130000000000001,
+    "book": "TXLineStablePriceDemargined"
+  },
+  "market": "CeWEP7MhnEfPqgTwpGoDpq6FUUBi3Kw4VDn8B9kSDLMR",
+  "mint": "An7XxJnewu7MMgXRxuzQSnSUbEVA8Hru16wpDko79zR4",
   "decisions": [
     {
       "round": 1,
-      "fair": 0.615296222490509,
+      "fair": 0.72464,
       "marketYes": 0,
-      "edge": 0.615296222490509,
+      "edge": 0.72464,
       "action": "deposit_yes",
-      "amount": 40000000
+      "amount": 40000000,
+      "kellyFull": 0.72464,
+      "fracOfBankroll": 0.05
     },
     {
       "round": 2,
-      "fair": 0.615296222490509,
+      "fair": 0.72464,
       "marketYes": 0.2857142857142857,
-      "edge": 0.32958193677622327,
+      "edge": 0.43892571428571425,
       "action": "deposit_yes",
-      "amount": 32958194
+      "amount": 40000000,
+      "kellyFull": 0.6144959999999999,
+      "fracOfBankroll": 0.05
     },
     {
       "round": 3,
-      "fair": 0.615296222490509,
-      "marketYes": 0.42182560023724575,
-      "edge": 0.19347062225326322,
+      "fair": 0.72464,
+      "marketYes": 0.4444444444444444,
+      "edge": 0.28019555555555553,
       "action": "deposit_yes",
-      "amount": 19347062
+      "amount": 40000000,
+      "kellyFull": 0.5043519999999999,
+      "fracOfBankroll": 0.05
     },
     {
       "round": 4,
-      "fair": 0.615296222490509,
-      "marketYes": 0.4799934121405397,
-      "edge": 0.13530281034996927,
+      "fair": 0.72464,
+      "marketYes": 0.5454545454545454,
+      "edge": 0.17918545454545454,
       "action": "deposit_yes",
-      "amount": 13530281
+      "amount": 40000000,
+      "kellyFull": 0.39420799999999995,
+      "fracOfBankroll": 0.05
     },
     {
       "round": 5,
-      "fair": 0.615296222490509,
-      "marketYes": 0.5141752417610959,
-      "edge": 0.10112098072941311,
+      "fair": 0.72464,
+      "marketYes": 0.6153846153846154,
+      "edge": 0.10925538461538453,
       "action": "deposit_yes",
-      "amount": 10112098
-    },
-    {
-      "round": 6,
-      "fair": 0.615296222490509,
-      "marketYes": 0.5369247734526011,
-      "edge": 0.07837144903790783,
-      "action": "deposit_yes",
-      "amount": 7837145
+      "amount": 40000000,
+      "kellyFull": 0.2840639999999998,
+      "fracOfBankroll": 0.04000000000000001
     }
   ],
-  "staked": 123.78478,
-  "collected": 223.78478,
-  "pnl": 100.00000000000001,
+  "staked": 200,
+  "collected": 300,
+  "pnl": 100,
   "final": {
-    "yes": 123784780,
+    "yes": 200000000,
     "no": 100000000,
-    "priceYes": 0.5531420858916322
+    "priceYes": 0.6666666666666666
   }
 }
