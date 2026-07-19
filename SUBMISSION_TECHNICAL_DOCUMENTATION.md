@@ -28,6 +28,7 @@ The command checks:
 
 - the committed demo market exists and is settled on public Solana devnet;
 - on-chain pool balances match the committed run artifact;
+- the immutable settlement instruction contains the expected fixture, period-100 score proof, and canonical TxLINE CPI;
 - the real TxLINE final score can be fetched again;
 - the outcome derived from that score equals the on-chain resolution;
 - the deterministic CLV study reproduces from the committed odds cache;
@@ -146,7 +147,7 @@ produced:
 
 The public evidence bundle is `evidence/live-daemon-proof-2026-07-19.json`.
 `judge:verify` validates its raw tick fingerprint, ledger chain and receipt link,
-then independently fetches the devnet transaction and resulting pool balances.
+then independently fetches the devnet transaction and decodes its instruction bytes to prove the exact side and amount. This remains valid if later transactions change the market account.
 
 ## 5. Operating modes
 

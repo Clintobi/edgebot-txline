@@ -106,7 +106,7 @@ The sanitized raw event, both linked gate decisions, and transaction receipt are
 committed in [`evidence/live-daemon-proof-2026-07-19.json`](evidence/live-daemon-proof-2026-07-19.json).
 `npm run judge:verify` independently fingerprints the raw event, checks the ledger
 chain, fetches the transaction, confirms its trader/market/program accounts, and
-checks that the gated amount landed in the market pools.
+decodes its immutable instruction bytes to confirm the exact gated side and amount.
 
 ## Mechanism demo (devnet) — the loop, end to end
 
@@ -248,12 +248,13 @@ or the demo creates an ephemeral independent trader. There is no machine-specifi
 ## Verify it yourself — no trust required
 
 ```bash
-npm run judge:verify   # re-checks the last run from PUBLIC devnet RPC + real TxLINE + this repo
+npm run judge:verify   # re-checks immutable TxLINE proof/CPI evidence on PUBLIC devnet
 npm test               # unit suite over the pure quant logic (lib.mjs)
 ```
 
-`judge:verify` needs no keys and no wallet. It reads the market straight off public devnet,
-confirms it is **Settled**, re-fetches the **real TxLINE final score**, re-derives the outcome,
+`judge:verify` needs no keys, wallet, API token, or TxLINE account. It reads the market straight
+off public devnet, locates the immutable settlement transaction, decodes the final-period
+TxLINE proof values from its instruction bytes, confirms the canonical TxLINE CPI executed,
 and checks that the **on-chain resolution equals the derived outcome** (proving the winner was
 never a number we typed in), that the pools match the reported run, and that the CLV backtest
 **reproduces** from the committed cache. It also runs the per-tick daemon replay and verifies
@@ -261,7 +262,7 @@ that its ALLOW/DENY ledger is hash-chain intact. `npm test` covers SSE chunking,
 fresh repricing, fail-closed policy rules, ledger tamper detection, Kelly sizing, CLV, outcome
 derivation, and Brier.
 
-The current verifier reports **14 independent checks**, including the captured
+The current verifier reports **15 independent checks**, including the captured
 live SSE → policy hash → successful devnet transaction chain.
 
 Watch the ≤5-min demo: **https://youtu.be/n2OlWOnD7Yk** (script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)).
