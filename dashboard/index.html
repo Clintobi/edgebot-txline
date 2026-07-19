@@ -7,10 +7,9 @@
 <meta name="description" content="EdgeBot reads TxLINE's fair odds, stakes real USDC on the mispriced side with quarter-Kelly, and settles trustlessly from the real result on Solana. A live terminal — every number re-checkable from public devnet." />
 <meta property="og:title" content="EdgeBot — autonomous trading terminal" />
 <meta property="og:description" content="Reads the fair line. Stakes real capital. Settles trustlessly. Verify every number from public devnet." />
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: dark;
@@ -21,9 +20,9 @@
     --proof:#f2c968; --proof-2:#c99a35;
     --neg:#ff7d8c; --warn:#e6a552;
     --topbar:48px; --rail:64px; --maxw:1120px;
-    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-    --disp:'Clash Display','Satoshi',ui-sans-serif,system-ui,sans-serif;
-    --sans:'Satoshi',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --sans:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
     --ease:cubic-bezier(.16,1,.3,1);
     --t:background-color .16s ease-out,color .16s ease-out,border-color .16s ease-out;
     --z-rail:90; --z-top:100;
@@ -90,7 +89,7 @@
   .cleft{padding:26px 24px 24px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
   .pnlblock{display:flex;flex-direction:column;gap:6px}
   .pnlk{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
-  .pnlnum{font-family:var(--disp);font-weight:600;letter-spacing:-0.03em;line-height:.92;font-size:clamp(52px,8.4vw,84px);display:flex;align-items:flex-end;gap:.02em}
+  .pnlnum{font-family:var(--disp);font-weight:600;letter-spacing:-0.03em;line-height:.92;font-size:clamp(52px,8.4vw,84px);display:flex;align-items:flex-end;gap:.02em;font-variant-numeric:tabular-nums}
   .pnlnum .cents{font-family:var(--disp);font-weight:600;font-size:.5em;letter-spacing:-.02em;margin-bottom:.015em}
   .pnlnum .unit{font-family:var(--sans);font-weight:500;font-size:.22em;color:var(--muted);margin-bottom:.28em;margin-left:.34em;letter-spacing:.02em}
   .delta{font-family:var(--mono);font-size:12px;letter-spacing:.01em;display:inline-flex;align-items:center;gap:6px}
@@ -247,7 +246,7 @@
 
     <!-- ── POSITION COCKPIT ── -->
     <section class="grp" id="position">
-      <div class="card cockpit rise">
+      <div class="card cockpit">
         <div class="ch">
           <span class="lab">Live position · autonomous</span>
           <span style="display:flex;gap:8px;align-items:center">
@@ -409,11 +408,17 @@ const NS='http://www.w3.org/2000/svg', el=(t,a)=>{const e=document.createElement
 const pct=x=>(x*100).toFixed(1)+'%';
 const CO={ink:'#eef2f8',sig:'#35e6c2',proof:'#f2c968',faint:'#586479',line:'#232d3e',muted:'#9aa6b8',neg:'#ff7d8c',bg:'#06080c'};
 
-/* reveal (enhancement only — .rise is visible unless JS + IO run) */
-if(!RM){
-  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
-  document.querySelectorAll('.rise').forEach(n=>io.observe(n));
-}else{document.querySelectorAll('.rise').forEach(n=>n.classList.add('in'));}
+/* reveal — enhancement only; never gates content blank (in-view reveals now, failsafe guarantees visibility) */
+(function(){
+  const els=[...document.querySelectorAll('.rise')];
+  const reveal=n=>n.classList.add('in');
+  if(RM){els.forEach(reveal);return;}
+  const inView=n=>{const r=n.getBoundingClientRect();return r.top<innerHeight*0.98&&r.bottom>0;};
+  els.forEach(n=>{if(inView(n))reveal(n);});                 // anything already visible on load reveals immediately
+  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+  els.forEach(n=>{if(!n.classList.contains('in'))io.observe(n);});
+  setTimeout(()=>els.forEach(reveal),1200);                  // failsafe: nothing stays hidden
+})();
 
 /* rail scrollspy */
 (function(){
@@ -470,7 +475,7 @@ let SIG={rounds:[0,.286,.444,.519,.562,.591],fair:.725};
     // nodes
     r.forEach((v,i)=>{x.beginPath();x.arc(X(i),Y(v),3.2,0,7);x.fillStyle=CO.bg;x.fill();x.lineWidth=1.6;x.strokeStyle=CO.sig;x.stroke();});
     // x-axis round labels (context, Mercury-style)
-    x.fillStyle=CO.faint;x.font="9px 'JetBrains Mono',ui-monospace,monospace";x.textAlign='center';x.textBaseline='alphabetic';
+    x.fillStyle=CO.faint;x.font="9px 'IBM Plex Mono',ui-monospace,monospace";x.textAlign='center';x.textBaseline='alphabetic';
     r.forEach((v,i)=>x.fillText('R'+(i+1),X(i),yBot+15));x.textAlign='left';
     // gold pulse at last (proven / settled endpoint)
     const li=n-1, pr=RM?4:4+Math.sin(tp*.045)*1.4;
@@ -490,25 +495,25 @@ const Q={ power:[[10,.059],[20,.105],[30,.143],[50,.253],[75,.366],[100,.501],[1
   [0,.5,1].forEach(t=>{g.appendChild(el('line',{x1:X(t),y1:Y(0),x2:X(t),y2:Y(1),stroke:CO.line,opacity:.6}));g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(1),y2:Y(t),stroke:CO.line,opacity:.6}));});
   g.appendChild(el('line',{x1:X(0),y1:Y(0),x2:X(1),y2:Y(1),stroke:CO.faint,'stroke-dasharray':'3 3',opacity:.8}));
   Q.rel.forEach(b=>{if(!b.n)return;const r=4.5+Math.sqrt(b.n)*3.3;g.appendChild(el('circle',{cx:X(b.pred),cy:Y(b.act),r,fill:'rgba(53,230,194,.15)',stroke:CO.sig,'stroke-width':1.5}));});
-  g.appendChild(el('text',{x:X(.5),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'JetBrains Mono','font-size':9.5})).textContent='predicted →   actual ↑';
+  g.appendChild(el('text',{x:X(.5),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9.5})).textContent='predicted →   actual ↑';
 })();
 (function(){const W=320,Hh=170,m=30,g=document.getElementById('power'),C=Q.power,mx=300;
   const X=n=>m+(n/mx)*(W-m-10),Y=p=>Hh-m-p*(Hh-m-12);
-  [.2,.5,.8].forEach(t=>{g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(mx),y2:Y(t),stroke:CO.line,opacity:.6}));g.appendChild(el('text',{x:m-6,y:Y(t)+3,'text-anchor':'end',fill:CO.faint,'font-family':'JetBrains Mono','font-size':9})).textContent=(t*100)+'%';});
+  [.2,.5,.8].forEach(t=>{g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(mx),y2:Y(t),stroke:CO.line,opacity:.6}));g.appendChild(el('text',{x:m-6,y:Y(t)+3,'text-anchor':'end',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9})).textContent=(t*100)+'%';});
   g.appendChild(el('line',{x1:X(0),y1:Y(.8),x2:X(mx),y2:Y(.8),stroke:CO.proof,'stroke-dasharray':'3 3',opacity:.85}));
   let d=`M ${X(C[0][0])} ${Y(C[0][1])}`;C.forEach(p=>d+=` L ${X(p[0])} ${Y(p[1])}`);
   g.appendChild(el('path',{d:d+` L ${X(mx)} ${Y(0)} L ${X(10)} ${Y(0)} Z`,fill:'rgba(53,230,194,.10)'}));
   g.appendChild(el('path',{d,fill:'none',stroke:CO.sig,'stroke-width':2.2}));
   g.appendChild(el('circle',{cx:X(20),cy:Y(.105),r:4.5,fill:CO.proof,stroke:CO.bg,'stroke-width':1.6}));
-  g.appendChild(el('text',{x:X(20)+8,y:Y(.105)-6,fill:CO.proof,'font-family':'JetBrains Mono','font-size':10})).textContent='N=20 → 10.5%';
-  [20,100,200,300].forEach(n=>g.appendChild(el('text',{x:X(n),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'JetBrains Mono','font-size':9})).textContent=n);
+  g.appendChild(el('text',{x:X(20)+8,y:Y(.105)-6,fill:CO.proof,'font-family':'IBM Plex Mono','font-size':10})).textContent='N=20 → 10.5%';
+  [20,100,200,300].forEach(n=>g.appendChild(el('text',{x:X(n),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9})).textContent=n);
 })();
 (function(){const W=320,Hh=170,m=28,g=document.getElementById('kelly'),K=Q.kelly,mg=.7,bw=(W-m-10)/K.length;
   K.forEach((k,i)=>{const h=(k.g/mg)*(Hh-m-26),xx=m+i*bw+bw*.2,w=bw*.6,yy=Hh-m-h,hot=k.f===.25;
     g.appendChild(el('rect',{x:xx,y:yy,width:w,height:h,rx:4,fill:hot?CO.sig:'rgba(53,230,194,.28)'}));
-    g.appendChild(el('text',{x:xx+w/2,y:yy-5,'text-anchor':'middle',fill:hot?CO.sig:CO.muted,'font-family':'JetBrains Mono','font-size':10})).textContent='+'+k.g.toFixed(2);
-    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+13,'text-anchor':'middle',fill:hot?CO.ink:CO.faint,'font-family':'JetBrains Mono','font-size':10})).textContent=k.f.toFixed(2)+'×';
-    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+24,'text-anchor':'middle',fill:k.ruin>0?CO.neg:CO.faint,'font-family':'JetBrains Mono','font-size':8})).textContent=k.ruin>0?(k.ruin*100).toFixed(1)+'% ruin':'0% ruin';});
+    g.appendChild(el('text',{x:xx+w/2,y:yy-5,'text-anchor':'middle',fill:hot?CO.sig:CO.muted,'font-family':'IBM Plex Mono','font-size':10})).textContent='+'+k.g.toFixed(2);
+    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+13,'text-anchor':'middle',fill:hot?CO.ink:CO.faint,'font-family':'IBM Plex Mono','font-size':10})).textContent=k.f.toFixed(2)+'×';
+    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+24,'text-anchor':'middle',fill:k.ruin>0?CO.neg:CO.faint,'font-family':'IBM Plex Mono','font-size':8})).textContent=k.ruin>0?(k.ruin*100).toFixed(1)+'% ruin':'0% ruin';});
 })();
 
 /* ── live run (fetch real data) ── */
