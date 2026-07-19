@@ -1,16 +1,22 @@
-# EdgeBot — Verifiable Tick-to-Transaction Trading
+# EdgeBot — Trustless Settlement + Liquidity for On-Chain Sports Markets
 
 **TxODDS × Solana World Cup Hackathon · Trading Tools and Agents track**
 
-EdgeBot is an autonomous TxLINE → Solana control plane: a persistent SSE daemon
-re-prices on **every odds tick**, a deterministic policy gate records every
-ALLOW/DENY in a tamper-evident ledger, and the on-chain market settles from a
-TxLINE Merkle proof whose winner the caller cannot choose.
+On-chain sports markets have one hard, unsolved problem: **who decides the outcome, and why
+should anyone trust them?** EdgeBot is the autonomous, TxLINE-powered engine that settles it — a
+tool a **market operator or trading desk** can deploy to run **provably-fair** match-outcome
+markets. It prices and provides two-sided liquidity from TxLINE's live sharp odds (a persistent
+SSE daemon re-prices on **every tick**), executes autonomously on Solana behind a tamper-evident
+policy gate, and **settles each market from TxLINE's cryptographic proof of the real result — no
+admin, and nobody, not even the operator, can pick the winner.**
 
-The headline novelty is independently reproducible: `npm run judge:verify` needs
-**no wallet, keypair, API credential, or environment setup**. It re-derives the
-public devnet settlement from the real score, reproduces the CLV study, replays
-per-tick pricing, and verifies the policy ledger's hash chain.
+Anyone can audit that a market settled honestly: `npm run judge:verify` needs **no wallet,
+keypair, API credential, or environment setup**. It re-derives the public devnet settlement from
+the real score, reproduces the studies, replays per-tick pricing, and verifies the policy ledger's
+hash chain.
+
+**Who it's for:** a prediction-market / sportsbook operator, a trading desk, or a B2B intermediary
+that wants to run sports markets **without being the trusted party.**
 
 **Demo video (≤5 min):** https://youtu.be/n2OlWOnD7Yk
 **Dashboard (application access):** https://edgebot-txline.vercel.app
@@ -259,7 +265,7 @@ derivation, and Brier.
 The current verifier reports **14 independent checks**, including the captured
 live SSE → policy hash → successful devnet transaction chain.
 
-Watch the ≤5-min demo: **https://youtu.be/n2OlWOnD7Yk** (script: [`DEMO_SCRIPT_4_MINUTES.md`](DEMO_SCRIPT_4_MINUTES.md)).
+Watch the ≤5-min demo: **https://youtu.be/n2OlWOnD7Yk** (script: [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md)).
 
 ## TxLINE endpoints used
 
