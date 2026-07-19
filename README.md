@@ -12,6 +12,7 @@ The headline novelty is independently reproducible: `npm run judge:verify` needs
 public devnet settlement from the real score, reproduces the CLV study, replays
 per-tick pricing, and verifies the policy ledger's hash chain.
 
+**Demo video (≤5 min):** https://youtu.be/n2OlWOnD7Yk
 **Dashboard (application access):** https://edgebot-txline.vercel.app
 
 ## What's novel here — and what isn't
@@ -258,7 +259,7 @@ derivation, and Brier.
 The current verifier reports **14 independent checks**, including the captured
 live SSE → policy hash → successful devnet transaction chain.
 
-For a fully timed recording, follow [`DEMO_SCRIPT_4_MINUTES.md`](DEMO_SCRIPT_4_MINUTES.md).
+Watch the ≤5-min demo: **https://youtu.be/n2OlWOnD7Yk** (script: [`DEMO_SCRIPT_4_MINUTES.md`](DEMO_SCRIPT_4_MINUTES.md)).
 
 ## TxLINE endpoints used
 
