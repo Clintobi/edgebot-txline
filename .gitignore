@@ -8,3 +8,6 @@ txline-creds.json
 program/target/
 program/.anchor/
 .DS_Store
+
+# skillui design reference (contains reference sites' proprietary fonts — do not redistribute)
+design-ref/
