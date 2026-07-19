@@ -13,11 +13,11 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#171721; --surface:#1e1e2a; --surface-2:#272735; --surface-3:#2e2e3d;
-    --line:rgba(180,183,200,.12); --line-2:rgba(180,183,200,.18);
-    --ink:#ffffff; --ink-2:#dddde5; --muted:#9d9da8; --faint:#70707d;
-    --accent:#5266eb; --accent-2:#465bd1; --accent-l:#8da4f5; --accent-bg:rgba(82,102,235,.14);
-    --pos:#77c599; --neg:#fc92b4;
+    --bg:#0e1417; --surface:#151c21; --surface-2:#1e262c; --surface-3:#27313a;
+    --line:rgba(150,178,182,.12); --line-2:rgba(150,178,182,.18);
+    --ink:#eef4f4; --ink-2:#c9d4d6; --muted:#899aa0; --faint:#5a686f;
+    --accent:#2dd4bf; --accent-2:#20b6a4; --accent-l:#5fe9d6; --accent-bg:rgba(45,212,191,.14);
+    --pos:#2dd4bf; --neg:#fb7185; --gold:#f2c96a;
     --sidebar:208px; --topbar:56px; --banner:46px; --maxw:1180px;
     --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
     --sans:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -32,7 +32,7 @@
 
   /* ── demo banner (full-width top strip) ── */
   .demobar{position:fixed;top:0;left:0;right:0;height:var(--banner);z-index:120;display:flex;align-items:center;gap:12px;
-    padding:0 20px;background:#15151d;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+    padding:0 20px;background:#0b1114;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
   .demobar .dbl{display:flex;align-items:center;gap:10px;min-width:0}
   .demobar .dbmk{width:20px;height:20px;border-radius:5px;flex:none}
   .demobar .dbl b{color:var(--ink-2);font-weight:400}
@@ -42,7 +42,7 @@
   .dbrole{display:inline-flex;align-items:center;gap:7px;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:5px 11px;font-size:12.5px}
   .dbrole svg{width:12px;height:12px}
   .dbrole .d{width:6px;height:6px;border-radius:50%;background:var(--pos)}
-  .dbbtn{background:var(--accent);color:#fff;border-radius:9px;padding:6px 13px;font-size:13px;transition:var(--t)}
+  .dbbtn{background:var(--accent);color:#07110f;font-weight:500;border-radius:9px;padding:6px 13px;font-size:13px;transition:var(--t)}
   .dbbtn:hover{background:var(--accent-2)}
   h1,h2,h3,h4{font-family:var(--disp);font-weight:500;color:var(--ink);margin:0;letter-spacing:-.01em}
   a{color:var(--accent-l);text-decoration:none;transition:var(--t)}
@@ -101,8 +101,8 @@
     background:var(--surface);border:1px solid var(--line);color:var(--ink-2);transition:var(--t),transform .2s var(--ease);cursor:pointer}
   .pill:hover{background:var(--surface-2);transform:translateY(-1px)}
   .pill svg{width:16px;height:16px;color:var(--muted)}
-  .pill.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .pill.primary svg{color:#fff}
+  .pill.primary{background:var(--accent);border-color:var(--accent);color:#07110f;font-weight:500}
+  .pill.primary svg{color:#07110f}
   .pill.primary:hover{background:var(--accent-2)}
 
   /* ── cards ── */
@@ -152,7 +152,7 @@
   .bar i.g{background:var(--pos)}
   .mc .ms{font-size:11.5px;color:var(--faint);margin-top:9px}
   .tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:500}
-  .tag.g{background:rgba(119,197,153,.14);color:var(--pos)} .tag.i{background:var(--accent-bg);color:var(--accent-l)}
+  .tag.g{background:rgba(45,212,191,.14);color:var(--pos)} .tag.i{background:var(--accent-bg);color:var(--accent-l)}
   .tag .d{width:5px;height:5px;border-radius:50%;background:currentColor}
 
   /* transactions / blotter */
@@ -168,8 +168,8 @@
   .tx .num{font-variant-numeric:tabular-nums;color:var(--ink-2)}
   .tx .amt{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:500}
   .tx .amt.hold{color:var(--faint);font-weight:400}
-  .settle{display:flex;gap:12px;align-items:flex-start;padding:14px 20px;border-top:1px solid var(--line);background:rgba(119,197,153,.05);font-size:12.5px;color:var(--muted);line-height:1.5}
-  .settle .t{font-family:var(--mono);font-size:10px;letter-spacing:.03em;color:var(--pos);border:1px solid rgba(119,197,153,.4);border-radius:5px;padding:3px 7px;flex:none}
+  .settle{display:flex;gap:12px;align-items:flex-start;padding:14px 20px;border-top:1px solid var(--line);background:rgba(45,212,191,.05);font-size:12.5px;color:var(--muted);line-height:1.5}
+  .settle .t{font-family:var(--mono);font-size:10px;letter-spacing:.03em;color:var(--pos);border:1px solid rgba(45,212,191,.4);border-radius:5px;padding:3px 7px;flex:none}
   .settle b{color:var(--ink-2);font-weight:500}
 
   /* section title */
@@ -232,7 +232,7 @@
 
 <div class="demobar">
   <div class="dbl">
-    <svg class="dbmk" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#5266eb"/><path d="M8 21 L13 21 L16 10 L19 21 L24 21" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="10" r="1.9" fill="#fff"/></svg>
+    <svg class="dbmk" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#2dd4bf"/><path d="M8 21 L13 21 L16 10 L19 21 L24 21" stroke="#0b1114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="10" r="1.9" fill="#0b1114"/></svg>
     <span>Explore the EdgeBot devnet demo. <a href="#verify">See how it settles</a></span>
   </div>
   <div class="dbr">
@@ -243,7 +243,7 @@
 
 <aside class="sidebar">
   <div class="ws">
-    <svg class="mk" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#5266eb"/><path d="M8 21 L13 21 L16 10 L19 21 L24 21" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="10" r="1.9" fill="#fff"/></svg>
+    <svg class="mk" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#2dd4bf"/><path d="M8 21 L13 21 L16 10 L19 21 L24 21" stroke="#0b1114" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="10" r="1.9" fill="#0b1114"/></svg>
     <span class="nm">EdgeBot</span>
     <span class="badge">Devnet</span>
   </div>
@@ -256,20 +256,10 @@
   <div class="sec">Bookmarks</div>
   <a class="bm" href="https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6" stroke-linecap="round"/></svg><span>Program</span></span><span class="v">AfvTru…DbD8</span></a>
   <a class="bm" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 5l-4 7 4 7M16 5l4 7-4 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Source</span></span><span class="v">Clintobi/edgebot</span></a>
-  <a class="bm" href="https://claude.ai/code/artifact/ba866450-e1d6-4b3b-a409-a6c2989bd99f" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke-linecap="round"/></svg><span>Quant dossier</span></span><span class="v">seeded · reproducible</span></a>
   <span class="side-sp"></span>
 </aside>
 
 <div class="main">
-  <header class="topbar">
-    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg><span>Search markets, fixtures, txns…</span></div>
-    <div class="sp"></div>
-    <a class="tact" href="#verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify run</a>
-    <div class="ib" title="Devnet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" stroke-linecap="round"/></svg></div>
-    <div class="ib" title="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5a5 5 0 0 0-5 5c0 5-2 6-2 6h14s-2-1-2-6a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-    <div class="avatar"></div>
-  </header>
-
   <div class="content">
     <div class="pagehead">
       <h1>Welcome back</h1>
@@ -280,7 +270,6 @@
       <a class="pill primary" href="#verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg>Verify</a>
       <a class="pill" id="pill-explorer" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 5h5v5M19 5l-8 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke-linecap="round"/></svg>Explorer</a>
       <a class="pill" href="#edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 14l3-3 3 2 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Backtest</a>
-      <a class="pill" href="https://claude.ai/code/artifact/ba866450-e1d6-4b3b-a409-a6c2989bd99f" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke-linecap="round"/></svg>Dossier</a>
     </div>
 
     <!-- balance + position -->
@@ -288,12 +277,11 @@
       <div class="card rise">
         <div class="ch">
           <span class="lab"><svg class="vok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Realized P&amp;L</span>
-          <div class="ico-toggle"><span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l5-5 3 3 7-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg></span></div>
+          <span class="mut" style="font-size:12px">settled from the real score</span>
         </div>
         <div class="bal">
           <div class="balnum pos" id="balnum"><span id="bal-int">+0</span><span class="c" id="bal-c">.00</span><span class="u">USDC</span></div>
           <div class="balrow">
-            <span class="drop">Last run <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             <span class="delta pos" id="d-collected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg>—</span>
             <span class="delta mut" id="d-staked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 7l10 10M15 17H7V9" stroke-linecap="round" stroke-linejoin="round"/></svg>—</span>
           </div>
@@ -359,7 +347,7 @@
     <!-- verify -->
     <h2 class="stitle" id="verify">Verify it yourself — no trust required</h2>
     <div class="card rise">
-      <div class="ch"><span class="lab">Read-only · public devnet + TxLINE · no keys</span><a class="tact" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:12px"><span style="color:var(--accent-l)">$</span>&nbsp;npm run judge:verify</a></div>
+      <div class="ch"><span class="lab">Read-only · public devnet + TxLINE · no keys</span><a class="tact" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:12px;color:var(--muted)"><span style="color:var(--gold)">$</span>&nbsp;npm run judge:verify</a></div>
       <div style="border-top:1px solid var(--line)">
         <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Market is <b style="color:var(--ink-2);margin-left:4px">Settled</b>&nbsp;on-chain</span><span class="num mut">on-chain state</span><span></span><span class="amt pos">pass</span></div>
         <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>On-chain pools <b style="color:var(--ink-2);margin-left:4px">match the run</b></span><span class="num mut">pool reconcile</span><span></span><span class="amt pos">pass</span></div>
@@ -389,7 +377,7 @@ document.documentElement.classList.add('js');
 const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
 const NS='http://www.w3.org/2000/svg',el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const pct=x=>(x*100).toFixed(1)+'%';
-const CO={ink:'#ffffff',accent:'#5266eb',accentL:'#8da4f5',pos:'#77c599',neg:'#fc92b4',faint:'#70707d',line:'#363644',muted:'#9d9da8',bg:'#171721',surface:'#1e1e2a'};
+const CO={ink:'#eef4f4',accent:'#2dd4bf',accentL:'#5fe9d6',pos:'#2dd4bf',neg:'#fb7185',faint:'#5a686f',line:'#27313a',muted:'#899aa0',bg:'#0e1417',surface:'#151c21'};
 
 /* reveal */
 (function(){const els=[...document.querySelectorAll('.rise')];const rv=n=>n.classList.add('in');
@@ -434,7 +422,7 @@ let SIG={rounds:[0,.286,.444,.545,.615],fair:.725};
     for(let k=0;k<=2;k++){const gy=yT+(yB-yT)*k/2;x.beginPath();x.moveTo(padX,gy);x.lineTo(W-padX,gy);x.stroke();}
     const pts=r.map((v,i)=>[X(i),Y(v)]);
     x.beginPath();spline(pts);x.lineTo(pts[n-1][0],yB);x.lineTo(pts[0][0],yB);x.closePath();
-    const g=x.createLinearGradient(0,yT,0,yB);g.addColorStop(0,'rgba(82,102,235,.22)');g.addColorStop(1,'rgba(82,102,235,0)');x.fillStyle=g;x.fill();
+    const g=x.createLinearGradient(0,yT,0,yB);g.addColorStop(0,'rgba(45,212,191,.22)');g.addColorStop(1,'rgba(45,212,191,0)');x.fillStyle=g;x.fill();
     x.beginPath();spline(pts);x.strokeStyle=CO.accent;x.lineWidth=1.8;x.lineJoin='round';x.lineCap='round';x.stroke();}
   new ResizeObserver(size).observe(c);size();
   window.__bchart=draw;})();
@@ -446,20 +434,20 @@ const Q={power:[[10,.059],[20,.105],[30,.143],[50,.253],[75,.366],[100,.501],[15
 (function(){const W=320,Hh=170,m=30,g=document.getElementById('calib');const X=v=>m+v*(W-m-10),Y=v=>Hh-m-v*(Hh-m-10);
   [0,.5,1].forEach(t=>{g.appendChild(el('line',{x1:X(t),y1:Y(0),x2:X(t),y2:Y(1),stroke:CO.line,opacity:.7}));g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(1),y2:Y(t),stroke:CO.line,opacity:.7}));});
   g.appendChild(el('line',{x1:X(0),y1:Y(0),x2:X(1),y2:Y(1),stroke:CO.faint,'stroke-dasharray':'3 3'}));
-  Q.rel.forEach(b=>{if(!b.n)return;const r=4.5+Math.sqrt(b.n)*3.2;g.appendChild(el('circle',{cx:X(b.pred),cy:Y(b.act),r,fill:'rgba(82,102,235,.18)',stroke:CO.accent,'stroke-width':1.5}));});
+  Q.rel.forEach(b=>{if(!b.n)return;const r=4.5+Math.sqrt(b.n)*3.2;g.appendChild(el('circle',{cx:X(b.pred),cy:Y(b.act),r,fill:'rgba(45,212,191,.18)',stroke:CO.accent,'stroke-width':1.5}));});
   g.appendChild(el('text',{x:X(.5),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'Geist','font-size':9.5})).textContent='predicted →   actual ↑';})();
 (function(){const W=320,Hh=170,m=30,g=document.getElementById('power'),C=Q.power,mx=300;const X=n=>m+(n/mx)*(W-m-10),Y=p=>Hh-m-p*(Hh-m-12);
   [.2,.5,.8].forEach(t=>{g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(mx),y2:Y(t),stroke:CO.line,opacity:.7}));g.appendChild(el('text',{x:m-6,y:Y(t)+3,'text-anchor':'end',fill:CO.faint,'font-family':'Geist','font-size':9})).textContent=(t*100)+'%';});
   g.appendChild(el('line',{x1:X(0),y1:Y(.8),x2:X(mx),y2:Y(.8),stroke:CO.accentL,'stroke-dasharray':'3 3'}));
   let d=`M ${X(C[0][0])} ${Y(C[0][1])}`;C.forEach(p=>d+=` L ${X(p[0])} ${Y(p[1])}`);
-  g.appendChild(el('path',{d:d+` L ${X(mx)} ${Y(0)} L ${X(10)} ${Y(0)} Z`,fill:'rgba(82,102,235,.12)'}));
+  g.appendChild(el('path',{d:d+` L ${X(mx)} ${Y(0)} L ${X(10)} ${Y(0)} Z`,fill:'rgba(45,212,191,.12)'}));
   g.appendChild(el('path',{d,fill:'none',stroke:CO.accent,'stroke-width':2.2}));
   g.appendChild(el('circle',{cx:X(20),cy:Y(.105),r:4.5,fill:CO.accentL,stroke:CO.bg,'stroke-width':1.6}));
   g.appendChild(el('text',{x:X(20)+8,y:Y(.105)-6,fill:CO.accentL,'font-family':'Geist','font-size':10})).textContent='N=20 → 10.5%';
   [20,100,200,300].forEach(n=>g.appendChild(el('text',{x:X(n),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'Geist','font-size':9})).textContent=n);})();
 (function(){const W=320,Hh=170,m=28,g=document.getElementById('kelly'),K=Q.kelly,mg=.7,bw=(W-m-10)/K.length;
   K.forEach((k,i)=>{const h=(k.g/mg)*(Hh-m-26),xx=m+i*bw+bw*.2,w=bw*.6,yy=Hh-m-h,hot=k.f===.25;
-    g.appendChild(el('rect',{x:xx,y:yy,width:w,height:h,rx:4,fill:hot?CO.accent:'rgba(82,102,235,.3)'}));
+    g.appendChild(el('rect',{x:xx,y:yy,width:w,height:h,rx:4,fill:hot?CO.accent:'rgba(45,212,191,.3)'}));
     g.appendChild(el('text',{x:xx+w/2,y:yy-5,'text-anchor':'middle',fill:hot?CO.accentL:CO.muted,'font-family':'Geist','font-size':10})).textContent='+'+k.g.toFixed(2);
     g.appendChild(el('text',{x:xx+w/2,y:Hh-m+13,'text-anchor':'middle',fill:hot?CO.ink:CO.faint,'font-family':'Geist','font-size':10})).textContent=k.f.toFixed(2)+'×';
     g.appendChild(el('text',{x:xx+w/2,y:Hh-m+24,'text-anchor':'middle',fill:k.ruin>0?CO.neg:CO.faint,'font-family':'Geist','font-size':8})).textContent=k.ruin>0?(k.ruin*100).toFixed(1)+'% ruin':'0% ruin';});})();
