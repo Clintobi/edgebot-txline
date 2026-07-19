@@ -3,394 +3,345 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>EdgeBot — autonomous trading terminal</title>
-<meta name="description" content="EdgeBot reads TxLINE's fair odds, stakes real USDC on the mispriced side with quarter-Kelly, and settles trustlessly from the real result on Solana. A live terminal — every number re-checkable from public devnet." />
-<meta property="og:title" content="EdgeBot — autonomous trading terminal" />
+<title>EdgeBot — autonomous trading desk</title>
+<meta name="description" content="EdgeBot reads TxLINE's fair odds, stakes real USDC on the mispriced side with quarter-Kelly, and settles trustlessly from the real result on Solana. Every number re-checkable from public devnet." />
+<meta property="og:title" content="EdgeBot — autonomous trading desk" />
 <meta property="og:description" content="Reads the fair line. Stakes real capital. Settles trustlessly. Verify every number from public devnet." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme: dark;
-    --bg:#06080c; --bg-2:#080b11; --surface:#0b0f16; --surface-2:#0f141d;
-    --line:#182030; --line-2:#232d3e;
-    --ink:#eef2f8; --muted:#9aa6b8; --faint:#586479;
-    --signal:#35e6c2; --signal-2:#1fbfa2; --signal-glow:rgba(53,230,194,.45);
-    --proof:#f2c968; --proof-2:#c99a35;
-    --neg:#ff7d8c; --warn:#e6a552;
-    --topbar:48px; --rail:64px; --maxw:1120px;
-    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-    --disp:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --sans:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --bg:#171721; --surface:#1e1e2a; --surface-2:#272735; --surface-3:#2e2e3d;
+    --line:#363644; --line-2:#424254;
+    --ink:#ffffff; --ink-2:#dddde5; --muted:#9d9da8; --faint:#70707d;
+    --accent:#5266eb; --accent-2:#465bd1; --accent-l:#8da4f5; --accent-bg:rgba(82,102,235,.14);
+    --pos:#77c599; --neg:#fc92b4;
+    --sidebar:228px; --topbar:60px; --maxw:1180px;
+    --mono:'Roboto Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
     --ease:cubic-bezier(.16,1,.3,1);
     --t:background-color .16s ease-out,color .16s ease-out,border-color .16s ease-out;
-    --z-rail:90; --z-top:100;
+    --z-side:80; --z-top:70;
   }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
-  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.55;letter-spacing:-0.006em;-webkit-font-smoothing:antialiased}
-  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:0}
-  a{color:var(--signal);text-decoration:none;transition:var(--t)}
-  .pos{color:var(--signal)} .neg{color:var(--neg)} .gd{color:var(--proof)} .mut{color:var(--muted)}
-  :focus-visible{outline:none;box-shadow:0 0 0 1px var(--bg),0 0 0 3px color-mix(in oklab,var(--signal) 60%,transparent);border-radius:8px}
+  body{margin:0;font-family:var(--mono);background:var(--bg);color:var(--ink-2);line-height:1.5;font-size:14px;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4{font-family:var(--disp);font-weight:600;color:var(--ink);margin:0;letter-spacing:-.01em}
+  a{color:var(--accent-l);text-decoration:none;transition:var(--t)}
+  .tnum{font-variant-numeric:tabular-nums}
+  .pos{color:var(--pos)} .neg{color:var(--neg)} .mut{color:var(--muted)} .fnt{color:var(--faint)}
+  :focus-visible{outline:none;box-shadow:0 0 0 1px var(--bg),0 0 0 3px var(--accent-l);border-radius:8px}
+  svg{display:block}
 
-  /* ── app frame ── */
-  .topbar{position:fixed;top:0;left:0;right:0;height:var(--topbar);z-index:var(--z-top);display:flex;align-items:center;gap:16px;
-    padding:0 18px;border-bottom:1px solid var(--line);background:rgba(6,8,12,.82);backdrop-filter:blur(16px) saturate(1.5)}
-  .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:-0.01em;flex:none}
-  .mark{width:26px;height:26px;flex:none;display:block}
-  .ticker{display:flex;align-items:center;gap:14px;margin:0 auto;font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.02em;white-space:nowrap}
-  .ticker .seg{display:flex;align-items:center;gap:7px}
-  .ticker b{color:var(--muted);font-weight:500}
-  .ticker .pos{color:var(--signal)}
-  .live{width:6px;height:6px;border-radius:50%;background:var(--signal);box-shadow:0 0 8px var(--signal);animation:pulse 2.4s var(--ease) infinite}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .topright{display:flex;align-items:center;gap:10px;flex:none}
-  .cmd{font-family:var(--mono);font-size:11.5px;color:var(--muted);background:var(--bg);border:1px solid var(--line-2);border-radius:8px;padding:6px 11px;display:inline-flex;gap:8px;align-items:center;transition:var(--t)}
-  .cmd:hover{border-color:var(--signal-2);color:var(--ink)} .cmd .p{color:var(--proof)}
-  .ghostlink{font-size:12.5px;color:var(--muted)} .ghostlink:hover{color:var(--ink)}
+  /* ── sidebar ── */
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar);z-index:var(--z-side);
+    background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:14px 12px;gap:2px;overflow-y:auto}
+  .ws{display:flex;align-items:center;gap:10px;padding:8px 8px 14px;margin-bottom:6px}
+  .ws .mk{width:26px;height:26px;border-radius:7px;flex:none}
+  .ws .nm{font-family:var(--disp);font-weight:600;color:var(--ink);font-size:14.5px;letter-spacing:-.01em}
+  .badge{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--accent-l);background:var(--accent-bg);border-radius:5px;padding:2px 6px;letter-spacing:.02em}
+  .nav{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13.5px;transition:var(--t);cursor:pointer}
+  .nav svg{width:17px;height:17px;color:var(--faint);flex:none;transition:var(--t)}
+  .nav:hover{background:rgba(112,115,147,.10);color:var(--ink-2)}
+  .nav:hover svg{color:var(--muted)}
+  .nav.active{background:var(--surface-2);color:var(--ink)}
+  .nav.active svg{color:var(--accent-l)}
+  .nav .ct{margin-left:auto;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .sec{font-size:11px;letter-spacing:.03em;color:var(--faint);padding:16px 10px 6px;text-transform:none}
+  .bm{display:flex;flex-direction:column;padding:7px 10px;border-radius:8px;transition:var(--t);cursor:pointer}
+  .bm:hover{background:rgba(112,115,147,.10)}
+  .bm .t{display:flex;align-items:center;gap:9px;color:var(--ink-2);font-size:13px}
+  .bm .t svg{width:14px;height:14px;color:var(--faint);flex:none}
+  .bm .v{font-size:11px;color:var(--faint);margin-left:23px;font-variant-numeric:tabular-nums}
+  .side-sp{flex:1}
 
-  .rail{position:fixed;top:var(--topbar);left:0;bottom:0;width:var(--rail);z-index:var(--z-rail);
-    border-right:1px solid var(--line);background:var(--bg-2);display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 0}
-  .railbtn{position:relative;width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:var(--faint);transition:var(--t)}
-  .railbtn svg{width:19px;height:19px;display:block}
-  .railbtn:hover{color:var(--ink);background:rgba(112,120,140,.08)}
-  .railbtn.active{color:var(--signal);background:color-mix(in oklab,var(--signal) 12%,transparent)}
-  .railbtn .tip{position:absolute;left:52px;top:50%;transform:translateY(-50%) translateX(-4px);opacity:0;pointer-events:none;
-    font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--ink);background:var(--surface-2);border:1px solid var(--line-2);
-    border-radius:7px;padding:5px 9px;white-space:nowrap;transition:opacity .16s ease-out,transform .16s ease-out;z-index:2}
-  .railbtn:hover .tip{opacity:1;transform:translateY(-50%) translateX(0)}
-  .railspace{flex:1}
+  /* ── topbar ── */
+  .topbar{position:sticky;top:0;z-index:var(--z-top);height:var(--topbar);display:flex;align-items:center;gap:14px;
+    padding:0 26px;background:rgba(23,23,33,.85);backdrop-filter:blur(14px) saturate(1.3);border-bottom:1px solid var(--line)}
+  .search{display:flex;align-items:center;gap:9px;color:var(--faint);font-size:13px;flex:1;max-width:340px}
+  .search svg{width:15px;height:15px}
+  .topbar .sp{flex:1}
+  .tact{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;padding:7px 11px;border-radius:8px;transition:var(--t);cursor:pointer}
+  .tact:hover{background:rgba(112,115,147,.12);color:var(--ink)}
+  .tact svg{width:15px;height:15px}
+  .ib{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--muted);transition:var(--t);cursor:pointer}
+  .ib:hover{background:rgba(112,115,147,.12);color:var(--ink)}
+  .ib svg{width:16px;height:16px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#5266eb,#8da4f5);flex:none}
 
-  .board{margin-left:var(--rail);padding-top:var(--topbar)}
-  .board-in{max-width:var(--maxw);margin:0 auto;padding:32px 28px 40px;display:flex;flex-direction:column;gap:64px}
-  .grp{display:flex;flex-direction:column;gap:20px;scroll-margin-top:64px}
-  .grphead{display:flex;flex-direction:column;gap:8px;max-width:70ch}
-  .kick{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--signal);margin:0}
-  .kick.gd{color:var(--proof)}
-  .gtitle{font-family:var(--disp);font-weight:600;font-size:clamp(24px,3.4vw,38px);line-height:1.05;letter-spacing:-0.03em;margin:0;text-wrap:balance}
-  .glede{font-size:15px;color:var(--muted);margin:0;text-wrap:pretty;max-width:62ch;line-height:1.55}
-  .glede b{color:var(--ink);font-weight:500}
+  /* ── layout ── */
+  .main{margin-left:var(--sidebar)}
+  .content{max-width:var(--maxw);margin:0 auto;padding:26px 26px 60px}
+  .pagehead{margin-bottom:20px}
+  .pagehead h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .pagehead p{color:var(--muted);font-size:13.5px;margin:5px 0 0}
+
+  .pills{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:24px}
+  .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;padding:9px 15px;border-radius:9px;
+    background:var(--surface);border:1px solid var(--line);color:var(--ink-2);transition:var(--t),transform .2s var(--ease);cursor:pointer}
+  .pill:hover{background:var(--surface-2);transform:translateY(-1px)}
+  .pill svg{width:15px;height:15px;color:var(--muted)}
+  .pill.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .pill.primary svg{color:#fff}
+  .pill.primary:hover{background:var(--accent-2)}
 
   /* ── cards ── */
-  .card{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,var(--surface),var(--bg-2));box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 18px 48px -30px rgba(0,0,0,.7)}
-  .ch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line)}
-  .ch .lab{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
-  .pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.03em;
-    border-radius:999px;padding:4px 10px;border:1px solid var(--line-2);color:var(--muted)}
-  .pill.ok{color:var(--signal);border-color:color-mix(in oklab,var(--signal) 34%,var(--line))}
-  .pill.pf{color:var(--proof);border-color:color-mix(in oklab,var(--proof) 34%,var(--line))}
-  .pill .d{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 7px currentColor}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+  .grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:20px;margin-bottom:20px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:20px}
+  .ch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px}
+  .ch .lab{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+  .ch .lab .vok{width:16px;height:16px;color:var(--accent-l)}
+  .ico-toggle{display:flex;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:2px}
+  .ico-toggle span{width:26px;height:22px;border-radius:6px;display:grid;place-items:center;color:var(--faint)}
+  .ico-toggle span.on{background:var(--surface-2);color:var(--ink-2)}
+  .ico-toggle svg{width:14px;height:14px}
 
-  /* ── cockpit hero ── */
-  .cockpit{overflow:hidden}
-  .cbody{display:grid;grid-template-columns:1fr 1.05fr;gap:0}
-  .cleft{padding:26px 24px 24px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
-  .pnlblock{display:flex;flex-direction:column;gap:6px}
-  .pnlk{font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
-  .pnlnum{font-family:var(--disp);font-weight:600;letter-spacing:-0.03em;line-height:.92;font-size:clamp(52px,8.4vw,84px);display:flex;align-items:flex-end;gap:.02em;font-variant-numeric:tabular-nums}
-  .pnlnum .cents{font-family:var(--disp);font-weight:600;font-size:.5em;letter-spacing:-.02em;margin-bottom:.015em}
-  .pnlnum .unit{font-family:var(--sans);font-weight:500;font-size:.22em;color:var(--muted);margin-bottom:.28em;margin-left:.34em;letter-spacing:.02em}
-  .delta{font-family:var(--mono);font-size:12px;letter-spacing:.01em;display:inline-flex;align-items:center;gap:6px}
-  .subreads{display:flex;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .subread{flex:1;padding:12px 16px;border-right:1px solid var(--line)}
-  .subread:last-child{border-right:0}
-  .subread .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
-  .subread .v{font-family:var(--mono);font-size:18px;font-weight:500;letter-spacing:-.01em}
-  .mktline{font-size:13px;color:var(--muted);line-height:1.5;text-wrap:pretty}
-  .mktline b{color:var(--ink);font-weight:500}
-  .cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
-  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:500;font-size:13.5px;padding:11px 17px;border-radius:11px;border:1px solid transparent;cursor:pointer;transition:var(--t),transform .2s var(--ease)}
-  .btn:hover{transform:translateY(-1px)}
-  .btn.pf{background:var(--proof);color:#1a1405;box-shadow:0 8px 26px -10px rgba(242,201,104,.5)}
-  .btn.pf:hover{background:#f6d580}
-  .btn.gh{border-color:var(--line-2);color:var(--ink);background:rgba(11,15,22,.5)}
-  .btn.gh:hover{border-color:var(--signal-2)}
-  .btn .k{font-family:var(--mono);font-size:11px;color:var(--proof)}
-  .cright{position:relative;padding:14px 18px 8px;display:flex;flex-direction:column}
-  .cright .chartcap{display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--faint);margin-bottom:4px}
-  #sig{width:100%;height:196px;display:block;flex:1}
+  /* balance / P&L card */
+  .bal{padding:0 20px 8px}
+  .balnum{font-family:var(--disp);font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1;
+    font-size:clamp(34px,4.4vw,46px);display:flex;align-items:flex-start;font-variant-numeric:tabular-nums}
+  .balnum .c{font-size:.52em;margin-top:.06em}
+  .balnum .u{font-family:var(--mono);font-size:.34em;font-weight:500;color:var(--muted);margin-top:.5em;margin-left:.28em;align-self:flex-start}
+  .balrow{display:flex;align-items:center;gap:18px;margin-top:12px;font-size:12.5px}
+  .drop{display:inline-flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer}
+  .drop svg{width:13px;height:13px}
+  .delta{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+  .delta svg{width:12px;height:12px}
+  #bchart{width:100%;height:190px;display:block;margin-top:4px}
+  .baxis{display:flex;justify-content:space-between;padding:2px 20px 16px;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
 
-  /* ── blotter ── */
-  .blot{font-family:var(--mono);font-size:13px}
-  .blot .r{display:grid;grid-template-columns:34px 1.1fr 1.1fr .9fr 1.6fr;gap:10px;padding:12px 20px;align-items:center;border-top:1px solid var(--line)}
-  .blot .r.h{border-top:0;color:var(--faint);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;background:var(--surface-2)}
-  .blot .r .rn{color:var(--faint)}
-  .blot .buy{color:var(--signal)} .blot .hold{color:var(--muted)}
-  .blot .r:not(.h):hover{background:rgba(112,120,140,.045)}
-  .stl{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:15px 20px;border-top:1px solid var(--line-2);background:linear-gradient(90deg,rgba(242,201,104,.06),transparent);font-size:13px;color:var(--muted)}
-  .stl .t{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--proof);border:1px solid color-mix(in oklab,var(--proof) 40%,var(--line));border-radius:6px;padding:3px 8px;flex:none}
-  .stl b{color:var(--ink);font-weight:500}
+  /* position (accounts) card */
+  .plist{padding:4px 0 8px}
+  .prow{display:flex;align-items:center;gap:12px;padding:11px 20px;transition:var(--t)}
+  .prow:hover{background:rgba(112,115,147,.055)}
+  .prow .pic{width:26px;height:26px;border-radius:7px;background:var(--surface-2);display:grid;place-items:center;color:var(--accent-l);flex:none}
+  .prow .pic svg{width:14px;height:14px}
+  .prow .pn{font-size:13px;color:var(--ink-2)}
+  .prow .pv{margin-left:auto;font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .prow .pv small{color:var(--faint);font-size:11px}
+  .cardfoot{padding:13px 20px;border-top:1px solid var(--line);font-size:12.5px}
 
-  /* ── verify ── */
-  .verify{border-color:color-mix(in oklab,var(--proof) 30%,var(--line));
-    background:radial-gradient(120% 150% at 100% 0%,rgba(242,201,104,.06),transparent 55%),linear-gradient(180deg,var(--surface),var(--bg-2))}
-  .vgrid{display:grid;grid-template-columns:1fr 1fr}
-  .vck{display:flex;gap:11px;align-items:flex-start;padding:15px 22px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted);line-height:1.45}
-  .vck:nth-child(odd){border-right:1px solid var(--line)}
-  .vck .ok{flex:none;width:19px;height:19px;border-radius:6px;display:grid;place-items:center;background:rgba(242,201,104,.14);color:var(--proof);font-size:11px;margin-top:1px}
-  .vck b{color:var(--ink);font-weight:500}
-  .vfoot{padding:14px 22px;border-top:1px solid var(--line-2);font-size:12px;color:var(--faint);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  /* metric cards */
+  .mc{padding:18px 20px;display:flex;flex-direction:column;gap:2px}
+  .mc .mk{color:var(--muted);font-size:12.5px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .mc .mv{font-family:var(--disp);font-weight:600;color:var(--ink);font-size:24px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .mc .mv small{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:400}
+  .bar{height:5px;border-radius:3px;background:var(--surface-3);margin-top:12px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+  .bar i.g{background:var(--pos)}
+  .mc .ms{font-size:11.5px;color:var(--faint);margin-top:9px}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:500}
+  .tag.g{background:rgba(119,197,153,.14);color:var(--pos)} .tag.i{background:var(--accent-bg);color:var(--accent-l)}
+  .tag .d{width:5px;height:5px;border-radius:50%;background:currentColor}
 
-  /* ── quant ── */
-  .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-  .qc{border:1px solid var(--line);border-radius:16px;padding:20px 22px;background:linear-gradient(180deg,var(--surface),var(--bg-2))}
-  .qc .qt{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .qc h3{font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:-.01em;margin:0}
-  .qc .badge{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:6px;flex:none}
-  .b-real{background:rgba(53,230,194,.12);color:var(--signal)} .b-syn{background:rgba(242,201,104,.12);color:var(--proof)}
-  .qc p{font-size:13px;color:var(--muted);margin:0 0 12px;text-wrap:pretty;line-height:1.5}
-  .qc p b{color:var(--ink);font-weight:500}
-  .qbig{font-family:var(--mono);font-size:28px;font-weight:600;letter-spacing:-.02em}
-  .qc svg{width:100%;display:block}
+  /* transactions / blotter */
+  .txhead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 6px}
+  .txhead h3{font-size:15px}
+  .tx{display:grid;grid-template-columns:30px 1.3fr 1fr .9fr auto;gap:12px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);font-size:13px;transition:var(--t)}
+  .tx:hover{background:rgba(112,115,147,.055)}
+  .tx.h{border-top:1px solid var(--line);color:var(--faint);font-size:11px;letter-spacing:.02em;padding-top:9px;padding-bottom:9px}
+  .tx .rn{color:var(--faint);font-variant-numeric:tabular-nums}
+  .tx .ta{display:flex;align-items:center;gap:9px}
+  .tx .ta .ic{width:26px;height:26px;border-radius:50%;background:var(--accent-bg);display:grid;place-items:center;color:var(--accent-l);flex:none}
+  .tx .ta .ic svg{width:13px;height:13px}
+  .tx .num{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+  .tx .amt{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:500}
+  .tx .amt.hold{color:var(--faint);font-weight:400}
+  .settle{display:flex;gap:12px;align-items:flex-start;padding:14px 20px;border-top:1px solid var(--line);background:rgba(119,197,153,.05);font-size:12.5px;color:var(--muted);line-height:1.5}
+  .settle .t{font-family:var(--mono);font-size:10px;letter-spacing:.03em;color:var(--pos);border:1px solid rgba(119,197,153,.4);border-radius:5px;padding:3px 7px;flex:none}
+  .settle b{color:var(--ink-2);font-weight:500}
 
-  /* ── loop (genuine sequence → numbers earned) ── */
-  .loop{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--line)}
-  .step{background:var(--surface);padding:22px 20px;position:relative}
-  .step .no{font-family:var(--mono);font-size:11px;color:var(--signal);margin-bottom:12px;letter-spacing:.03em}
-  .step h4{font-family:var(--disp);font-weight:600;font-size:16px;margin:0 0 7px;letter-spacing:-.01em}
-  .step p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.5;text-wrap:pretty}
+  /* section title */
+  .stitle{font-size:15px;margin:34px 0 14px;color:var(--ink);font-weight:600}
+  .qgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:20px}
+  .qc{padding:18px 20px}
+  .qc .qh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .qc h4{font-size:14px}
+  .qc .bd{font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:3px 7px;border-radius:5px;font-weight:500}
+  .bd.r{background:var(--accent-bg);color:var(--accent-l)} .bd.s{background:rgba(157,157,168,.12);color:var(--muted)}
+  .qc p{font-size:12.5px;color:var(--muted);margin:0 0 12px;line-height:1.5}
+  .qc p b{color:var(--ink-2);font-weight:500}
+  .qbig{font-family:var(--disp);font-weight:600;font-size:24px;color:var(--ink);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .qc svg.chart{width:100%;display:block}
 
-  /* ── risk ── */
-  .risk{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-  .rc{border:1px solid var(--line);border-radius:16px;padding:22px 24px;background:linear-gradient(180deg,var(--surface),var(--bg-2))}
-  .rc h3{font-family:var(--disp);font-weight:600;font-size:16px;margin:0 0 8px}
-  .rc h3.k{color:var(--warn)}
-  .rc p{font-size:13.5px;color:var(--muted);margin:0;line-height:1.55}
-  .rc .f{font-family:var(--mono);font-size:11.5px;color:var(--signal);margin-top:14px;display:block;letter-spacing:0}
-  .rc .f.k{color:var(--warn)}
+  footer{border-top:1px solid var(--line);margin-top:20px}
+  .foot{max-width:var(--maxw);margin:0 auto;padding:18px 26px;display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;font-size:11.5px;color:var(--faint)}
+  .foot a{color:var(--muted)} .foot a:hover{color:var(--accent-l)}
+  .foot .sp{flex:1;min-width:16px} .foot .dot{color:var(--line-2)}
 
-  /* ── footer status bar ── */
-  footer{border-top:1px solid var(--line);margin-top:8px}
-  .foot{max-width:var(--maxw);margin:0 auto;padding:20px 28px;display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.01em}
-  .foot a{color:var(--muted)} .foot a:hover{color:var(--signal)}
-  .foot .sp{flex:1;min-width:20px}
-  .foot .dot{color:var(--line-2)}
+  /* reveal — enhancement only, never gates */
+  .rise{opacity:1}
+  .js .rise{opacity:0;transform:translateY(10px)}
+  .js .rise.in{opacity:1;transform:none;transition:opacity .55s var(--ease),transform .55s var(--ease)}
 
-  /* ── reveal (visible by default, JS-only enhancement) ── */
-  .js .rise{opacity:0;transform:translateY(14px)}
-  .js .rise.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
-
-  /* ── responsive ── */
-  @media(max-width:980px){
-    .cbody{grid-template-columns:1fr}
-    .cleft{border-right:0;border-bottom:1px solid var(--line)}
-    #sig{height:168px}
+  /* responsive */
+  @media(max-width:1080px){
+    :root{--sidebar:64px}
+    .ws .nm,.badge,.nav span:not(.ct),.nav .ct,.sec,.bm .t span,.bm .v{display:none}
+    .ws{justify-content:center;padding:8px 0 14px}
+    .nav{justify-content:center;padding:9px}
+    .bm .t{justify-content:center}
+    .grid4{grid-template-columns:repeat(2,1fr)}
   }
-  @media(max-width:820px){
-    :root{--rail:0px}
-    .rail{top:auto;bottom:0;left:0;right:0;width:auto;height:56px;flex-direction:row;justify-content:space-around;
-      align-items:center;padding:0 6px;border-right:0;border-top:1px solid var(--line);
-      background:rgba(8,11,17,.9);backdrop-filter:blur(16px)}
-    .railspace{display:none}
-    .railbtn .tip{display:none}
-    .board{margin-left:0}
-    .board-in{padding-bottom:76px;gap:56px}
-    .ticker{display:none}
-    .vgrid,.qgrid,.risk{grid-template-columns:1fr}
-    .vck:nth-child(odd){border-right:0}
-    .loop{grid-template-columns:1fr 1fr}
+  @media(max-width:860px){
+    .grid2{grid-template-columns:1fr}
+    .qgrid{grid-template-columns:1fr}
   }
-  @media(max-width:560px){
-    .topright .cmd{display:none}
-    .cockpit .ch{flex-wrap:wrap;row-gap:10px}
-    #mkt-addr{display:none}
-  }
-  @media(max-width:480px){
-    .loop{grid-template-columns:1fr}
-    .subreads{flex-direction:column}
-    .subread{border-right:0;border-bottom:1px solid var(--line)}
-    .subread:last-child{border-bottom:0}
+  @media(max-width:620px){
+    :root{--sidebar:0px}
+    .sidebar{transform:translateX(-100%)}
+    .main{margin-left:0}
+    .topbar{padding:0 16px}
+    .search span{display:none}
+    .content{padding:18px 16px 48px}
+    .grid4{grid-template-columns:1fr 1fr}
+    .tx{grid-template-columns:24px 1fr auto;gap:8px}
+    .tx .num{display:none}
   }
   @media(prefers-reduced-motion:reduce){
     .js .rise,.js .rise.in{opacity:1!important;transform:none!important;transition:none!important}
-    .live{animation:none} html{scroll-behavior:auto}
+    html{scroll-behavior:auto}
   }
 </style>
 </head>
 <body>
 
-<!-- ── top status bar ── -->
-<div class="topbar">
-  <div class="brand">
-    <svg class="mark" viewBox="0 0 32 32" fill="none"><rect x="1" y="1" width="30" height="30" rx="8" fill="#0b0f16" stroke="#232d3e"/><path d="M8 21 L13 21 L16 11 L19 21 L24 21" stroke="#35e6c2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="11" r="2" fill="#f2c968"/></svg>
-    <span>EdgeBot</span>
+<aside class="sidebar">
+  <div class="ws">
+    <svg class="mk" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="#5266eb"/><path d="M8 21 L13 21 L16 10 L19 21 L24 21" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="10" r="1.9" fill="#fff"/></svg>
+    <span class="nm">EdgeBot</span>
+    <span class="badge">Devnet</span>
   </div>
-  <div class="ticker" aria-hidden="true">
-    <span class="seg"><span class="live"></span><b>SOLANA DEVNET</b></span>
-    <span class="dot">·</span>
-    <span class="seg">agent&nbsp;<b>idle</b></span>
-    <span class="dot">·</span>
-    <span class="seg">last settle&nbsp;<b class="pos" id="ticker-pnl">+100.0 USDC</b></span>
-  </div>
-  <div class="topright">
-    <a class="cmd" href="#verify"><span class="p">$</span> npm run judge:verify</a>
-    <a class="ghostlink" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener">source ↗</a>
-  </div>
-</div>
+  <div class="nav active" data-go="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5M5 10v9h5v-6h4v6h5v-9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Overview</span></div>
+  <div class="nav" data-go="position"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg><span>Position</span></div>
+  <div class="nav" data-go="blotter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg><span>Blotter</span></div>
+  <div class="nav" data-go="verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Verify</span></div>
+  <div class="nav" data-go="edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 15l3.5-4 3 2.4L20 8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>The edge</span></div>
+  <div class="nav" data-go="risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M12 8.5v4M12 15.4v.1" stroke-linecap="round"/></svg><span>Risk</span></div>
+  <div class="sec">Bookmarks</div>
+  <a class="bm" href="https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6" stroke-linecap="round"/></svg><span>Program</span></span><span class="v">AfvTru…DbD8</span></a>
+  <a class="bm" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 5l-4 7 4 7M16 5l4 7-4 7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Source</span></span><span class="v">Clintobi/edgebot</span></a>
+  <a class="bm" href="https://claude.ai/code/artifact/ba866450-e1d6-4b3b-a409-a6c2989bd99f" target="_blank" rel="noopener"><span class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke-linecap="round"/></svg><span>Quant dossier</span></span><span class="v">seeded · reproducible</span></a>
+  <span class="side-sp"></span>
+</aside>
 
-<!-- ── left rail (→ bottom tab bar on mobile) ── -->
-<nav class="rail" aria-label="Sections">
-  <a class="railbtn" href="#position" data-spy="position" aria-label="Position"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span class="tip">Position</span></a>
-  <a class="railbtn" href="#blotter" data-spy="blotter" aria-label="Blotter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg><span class="tip">Blotter</span></a>
-  <a class="railbtn" href="#verify" data-spy="verify" aria-label="Verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tip">Verify</span></a>
-  <a class="railbtn" href="#edge" data-spy="edge" aria-label="Edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 15l3.5-4 3 2.4L20 8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tip">The edge</span></a>
-  <a class="railbtn" href="#loop" data-spy="loop" aria-label="Loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-4.5M4 7V3M4 7h4M4 13a8 8 0 0 0 14 4.5M20 17v4M20 17h-4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tip">The loop</span></a>
-  <a class="railbtn" href="#risk" data-spy="risk" aria-label="Risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M12 8.5v4M12 15.4v.1" stroke-linecap="round"/></svg><span class="tip">Risk</span></a>
-  <span class="railspace"></span>
-</nav>
+<div class="main">
+  <header class="topbar">
+    <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg><span>Search markets, fixtures, txns…</span></div>
+    <div class="sp"></div>
+    <a class="tact" href="#verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Verify run</a>
+    <div class="ib" title="Devnet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18" stroke-linecap="round"/></svg></div>
+    <div class="ib" title="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5a5 5 0 0 0-5 5c0 5-2 6-2 6h14s-2-1-2-6a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="avatar"></div>
+  </header>
 
-<main class="board">
-  <div class="board-in">
+  <div class="content">
+    <div class="pagehead">
+      <h1>Welcome back</h1>
+      <p>Here's your last autonomous run on Solana devnet.</p>
+    </div>
 
-    <!-- ── POSITION COCKPIT ── -->
-    <section class="grp" id="position">
-      <div class="card cockpit">
-        <div class="ch">
-          <span class="lab">Live position · autonomous</span>
-          <span style="display:flex;gap:8px;align-items:center">
-            <span class="pill ok" id="pos-status"><span class="d"></span> SETTLED</span>
-            <span class="pill pf">verified 6/6</span>
-            <span class="mono" id="mkt-addr" style="font-size:11px;color:var(--faint)">—</span>
-          </span>
-        </div>
-        <div class="cbody">
-          <div class="cleft">
-            <div class="pnlblock">
-              <span class="pnlk">Realized P&amp;L</span>
-              <div class="pnlnum pos" id="pnl"><span id="pnl-int">+0</span><span class="cents" id="pnl-cents">.0</span><span class="unit">USDC</span></div>
-              <span class="delta pos" id="roi">settled from the real score</span>
-            </div>
-            <div class="subreads">
-              <div class="subread"><div class="k">Staked</div><div class="v mono" id="staked">—</div></div>
-              <div class="subread"><div class="k">Collected</div><div class="v mono" id="collected">—</div></div>
-              <div class="subread"><div class="k">Autonomous bets</div><div class="v mono" id="nbets">—</div></div>
-            </div>
-            <p class="mktline" id="mkt-line">Loading the last autonomous run from devnet…</p>
-            <div class="cta">
-              <a class="btn pf" href="#verify">Verify it yourself <span class="k">6/6</span></a>
-              <a class="btn gh" id="explorer-btn" href="#" target="_blank" rel="noopener">View on Explorer ↗</a>
-            </div>
-          </div>
-          <div class="cright">
-            <div class="chartcap"><span>MARKET YES → FAIR VALUE</span><span id="faircap" class="pos">fair —</span></div>
-            <canvas id="sig"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div class="pills">
+      <a class="pill primary" href="#verify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg>Verify</a>
+      <a class="pill" id="pill-explorer" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 5h5v5M19 5l-8 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" stroke-linecap="round"/></svg>Explorer</a>
+      <a class="pill" href="#edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 14l3-3 3 2 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Backtest</a>
+      <a class="pill" href="https://claude.ai/code/artifact/ba866450-e1d6-4b3b-a409-a6c2989bd99f" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h11l3 3v13H5z" stroke-linejoin="round"/><path d="M8 11h8M8 15h5" stroke-linecap="round"/></svg>Dossier</a>
+    </div>
 
-    <!-- ── BLOTTER ── -->
-    <section class="grp" id="blotter">
-      <div class="grphead rise">
-        <h2 class="gtitle">It bought the mispriced side, round by round.</h2>
-        <p class="glede">No human picked the winner. The market opened mispriced against the fair line; EdgeBot sized each bet with quarter-Kelly and bought the edge down until it converged — then settled on what actually happened.</p>
-      </div>
+    <!-- balance + position -->
+    <div class="grid2" id="position">
       <div class="card rise">
-        <div class="blot" id="blot">
-          <div class="r h"><span>#</span><span>Fair P(home)</span><span>Market YES</span><span>Edge</span><span>Action · Kelly</span></div>
+        <div class="ch">
+          <span class="lab"><svg class="vok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5 4.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Realized P&amp;L</span>
+          <div class="ico-toggle"><span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16l5-5 3 3 7-8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg></span></div>
         </div>
+        <div class="bal">
+          <div class="balnum pos" id="balnum"><span id="bal-int">+0</span><span class="c" id="bal-c">.00</span><span class="u">USDC</span></div>
+          <div class="balrow">
+            <span class="drop">Last run <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="delta pos" id="d-collected"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg>—</span>
+            <span class="delta mut" id="d-staked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 7l10 10M15 17H7V9" stroke-linecap="round" stroke-linejoin="round"/></svg>—</span>
+          </div>
+        </div>
+        <canvas id="bchart"></canvas>
+        <div class="baxis" id="baxis"></div>
       </div>
-    </section>
 
-    <!-- ── VERIFY ── -->
-    <section class="grp" id="verify">
-      <div class="grphead rise">
-        <p class="kick gd">Verify it yourself</p>
-        <h2 class="gtitle">Nothing here is “trust me.” Every claim re-derives from chain.</h2>
-        <p class="glede">The one thing no paper agent can copy: a credential-free verifier that re-checks the whole run from public devnet RPC and the real TxLINE feed. Run one command — or read the six checks.</p>
+      <div class="card rise">
+        <div class="ch"><span class="lab">Position</span><span class="mut" style="font-size:12px" id="pos-fixture">—</span></div>
+        <div class="plist" id="plist">
+          <div class="prow"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8" stroke-linecap="round"/></svg></span><span class="pn" id="pos-market">Argentina to win outright</span><span class="pv"><a id="pos-mktlink" href="#" target="_blank" rel="noopener">Explorer ↗</a></span></div>
+          <div class="prow"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12l4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="pn">YES pool</span><span class="pv tnum" id="pos-yes">—</span></div>
+          <div class="prow"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span><span class="pn">NO pool</span><span class="pv tnum" id="pos-no">—</span></div>
+          <div class="prow"><span class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg></span><span class="pn">Settlement</span><span class="pv" id="pos-settle">—</span></div>
+        </div>
+        <div class="cardfoot"><span class="tag g"><span class="d"></span> Trustless proof-settle · oracle-pinned</span></div>
       </div>
-      <div class="card verify rise">
-        <div class="ch" style="border-color:var(--line)">
-          <span class="lab" style="color:var(--proof)">Read-only proof · public devnet + TxLINE · no keys</span>
-          <a class="cmd" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener"><span class="p">$</span> npm run judge:verify</a>
-        </div>
-        <div class="vgrid">
-          <div class="vck"><span class="ok">✓</span><span>Market is <b>Settled</b> on-chain</span></div>
-          <div class="vck"><span class="ok">✓</span><span>On-chain pools <b>match the run</b></span></div>
-          <div class="vck"><span class="ok">✓</span><span>Real TxLINE score <b>re-fetched</b> independently</span></div>
-          <div class="vck"><span class="ok">✓</span><span>Score <b>matches the run</b></span></div>
-          <div class="vck"><span class="ok">✓</span><span>Derived outcome <b>= on-chain resolution</b> — the winner was never a number the agent typed in</span></div>
-          <div class="vck"><span class="ok">✓</span><span>CLV backtest <b>reproduces</b> from the committed cache</span></div>
-        </div>
-        <div class="vfoot">
-          <span>6 of 6 pass — read from public RPC, the real TxLINE feed, and this repo.</span>
-          <span id="vmkt">settled market ↗</span>
-        </div>
-      </div>
-    </section>
+    </div>
 
-    <!-- ── EDGE / QUANT ── -->
-    <section class="grp" id="edge">
-      <div class="grphead rise">
-        <h2 class="gtitle">A single lucky run proves nothing. Closing-line value does.</h2>
-        <p class="glede">CLV measures skill independent of short-run luck. The full dossier grades it with a seeded bootstrap CI, a walk-forward split, calibration, and a power analysis — and reports exactly what it can and can’t claim.</p>
-      </div>
-      <div class="qgrid">
-        <div class="qc rise">
-          <div class="qt"><h3>The closing line is sharp</h3><span class="badge b-real">real data</span></div>
-          <p><span class="qbig pos">0.193</span> <span class="mono mut" style="font-size:12px">Brier vs 0.240 base · skill +0.195</span></p>
-          <p>The price EdgeBot bets <b>toward</b> is genuinely sharp — reliability per probability bin (dot area ∝ n).</p>
-          <svg id="calib" viewBox="0 0 320 170" aria-hidden="true"></svg>
-        </div>
-        <div class="qc rise">
-          <div class="qt"><h3>Why real N=20 can’t be “significant”</h3><span class="badge b-real">power analysis</span></div>
-          <p>N=20 has only <b class="gd">10.5% power</b>, so a non-significant result is <b>expected</b> — not evidence of no edge. Confirming it needs <b>N≈200</b>, the gated feed’s ceiling, for everyone.</p>
-          <svg id="power" viewBox="0 0 320 170" aria-hidden="true"></svg>
-        </div>
-        <div class="qc rise">
-          <div class="qt"><h3>Why quarter-Kelly</h3><span class="badge b-syn">sim · labelled</span></div>
-          <p>¼-Kelly captures <b class="pos">81%</b> of full-Kelly’s log-growth with <b class="pos">0% ruin</b> and ~40% less drawdown — the empirical case for the shipped sizing.</p>
-          <svg id="kelly" viewBox="0 0 320 170" aria-hidden="true"></svg>
-        </div>
-        <div class="qc rise" style="display:flex;flex-direction:column;justify-content:center">
-          <div class="qt"><h3>Under the validated model, the edge clears zero</h3><span class="badge b-syn">sim · labelled</span></div>
-          <p><span class="qbig gd">+8.89pp</span> <span class="mono mut" style="font-size:12px">mean CLV · 95% CI [+8.85, +8.93]</span></p>
-          <p>50,000 synthetic markets on a model <b>fit to real data and validated</b> against the real Brier (0.177 vs 0.193) before any conclusion — honestly labelled synthetic. No faked real-data significance.</p>
-          <a class="btn gh" href="https://claude.ai/code/artifact/ba866450-e1d6-4b3b-a409-a6c2989bd99f" target="_blank" rel="noopener" style="align-self:flex-start;margin-top:4px">Read the full quant dossier →</a>
-        </div>
-      </div>
-    </section>
+    <!-- metric cards -->
+    <div class="grid4">
+      <div class="card mc rise"><div class="mk">Closing line <span class="tag i">Brier</span></div><div class="mv tnum">0.193</div><div class="bar"><i style="width:80%"></i></div><div class="ms">vs 0.240 base · skill +0.195</div></div>
+      <div class="card mc rise"><div class="mk">Verifier</div><div class="mv tnum">6 / 6</div><div class="bar"><i class="g" style="width:100%"></i></div><div class="ms">credential-free · public RPC</div></div>
+      <div class="card mc rise"><div class="mk">Kill-switch</div><div class="mv">Armed</div><div class="ms" style="margin-top:16px"><span class="tag g"><span class="d"></span> feed-health + exposure guard</span></div></div>
+      <div class="card mc rise"><div class="mk">Sizing</div><div class="mv">¼-Kelly</div><div class="ms" style="margin-top:16px">0% ruin · 81% of full-Kelly growth</div></div>
+    </div>
 
-    <!-- ── LOOP ── -->
-    <section class="grp" id="loop">
-      <div class="grphead rise">
-        <h2 class="gtitle">The whole loop, autonomous.</h2>
-        <p class="glede">Signal → size → execute → settle. The inputs are live odds and on-chain state; the output is the real score. No human in the loop.</p>
+    <!-- transactions / blotter -->
+    <div class="card rise" id="blotter">
+      <div class="txhead"><h3>Autonomous bets</h3><span class="mut" style="font-size:12px">this run · quarter-Kelly</span></div>
+      <div id="txlist">
+        <div class="tx h"><span>#</span><span>Action</span><span class="num">Market YES → fair</span><span>Edge</span><span class="amt">Amount</span></div>
       </div>
-      <div class="loop rise">
-        <div class="step"><div class="no">01 · read</div><h4>Fair line</h4><p>Demargined TxLINE 1X2 → the raw home-win probability. The draw stays in NO — no favourite-inflating renormalization.</p></div>
-        <div class="step"><div class="no">02 · size</div><h4>Quarter-Kelly</h4><p>Edge = fair − market. Stake 0.25·f* of bankroll, capped 5% per position, 20% aggregate. Else hold.</p></div>
-        <div class="step"><div class="no">03 · execute</div><h4>Real USDC</h4><p>Deposits Token-2022 USDC on the mispriced side, on its own deployed Solana program. Repeats until converged.</p></div>
-        <div class="step"><div class="no">04 · settle</div><h4>Trustless proof</h4><p>A CPI to TxLINE’s validate_stat derives the winner from the on-chain Merkle proof — oracle pinned. Nobody types the outcome.</p></div>
-      </div>
-    </section>
+    </div>
 
-    <!-- ── RISK ── -->
-    <section class="grp" id="risk">
-      <div class="grphead rise">
-        <h2 class="gtitle">A desk could run this.</h2>
+    <!-- the edge / quant -->
+    <h2 class="stitle" id="edge">The edge — real, and honestly bounded</h2>
+    <div class="qgrid">
+      <div class="card qc rise">
+        <div class="qh"><h4>Closing line is sharp</h4><span class="bd r">real data</span></div>
+        <p><span class="qbig">0.193</span> <span class="mut tnum" style="font-size:12px">Brier vs 0.240 base · skill +0.195</span></p>
+        <p>The price EdgeBot bets <b>toward</b> is genuinely sharp — reliability per probability bin (dot area ∝ n).</p>
+        <svg id="calib" class="chart" viewBox="0 0 320 170" aria-hidden="true"></svg>
       </div>
-      <div class="risk">
-        <div class="rc rise">
-          <h3>Quarter-Kelly sizing</h3>
-          <p>Each bet is sized to a fraction of its edge, never a flat stake — a 5% per-position cap and a 20% aggregate exposure cap keep any single read from dominating the book.</p>
-          <span class="f">f* = (p − q) / (1 − q) · stake = 0.25 · f* · bankroll</span>
-        </div>
-        <div class="rc rise">
-          <h3 class="k">Kill-switch</h3>
-          <p>Halts on a stale or malformed odds feed, or the instant the aggregate exposure cap is hit. It never trades blind, and it never trades unbounded.</p>
-          <span class="f k">feed-health + exposure guard · armed every round</span>
-        </div>
+      <div class="card qc rise">
+        <div class="qh"><h4>Why N=20 can't be “significant”</h4><span class="bd r">power</span></div>
+        <p>N=20 has only <b>10.5% power</b>, so a non-significant result is <b>expected</b> — not evidence of no edge. Confirming needs <b>N≈200</b>, the gated feed's ceiling, for everyone.</p>
+        <svg id="power" class="chart" viewBox="0 0 320 170" aria-hidden="true"></svg>
       </div>
-    </section>
+      <div class="card qc rise">
+        <div class="qh"><h4>Why quarter-Kelly</h4><span class="bd s">sim · labelled</span></div>
+        <p>¼-Kelly captures <b>81%</b> of full-Kelly's log-growth with <b>0% ruin</b> and ~40% less drawdown — the case for the shipped sizing.</p>
+        <svg id="kelly" class="chart" viewBox="0 0 320 170" aria-hidden="true"></svg>
+      </div>
+      <div class="card qc rise" style="display:flex;flex-direction:column;justify-content:center">
+        <div class="qh"><h4>Under the validated model, edge clears zero</h4><span class="bd s">sim · labelled</span></div>
+        <p><span class="qbig">+8.89pp</span> <span class="mut tnum" style="font-size:12px">mean CLV · 95% CI [+8.85, +8.93]</span></p>
+        <p>50,000 synthetic markets on a model <b>fit to real data and validated</b> against the real Brier (0.177 vs 0.193) before any conclusion — honestly labelled synthetic.</p>
+      </div>
+    </div>
 
+    <!-- verify -->
+    <h2 class="stitle" id="verify">Verify it yourself — no trust required</h2>
+    <div class="card rise">
+      <div class="ch"><span class="lab">Read-only · public devnet + TxLINE · no keys</span><a class="tact" href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:12px"><span style="color:var(--accent-l)">$</span>&nbsp;npm run judge:verify</a></div>
+      <div style="border-top:1px solid var(--line)">
+        <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Market is <b style="color:var(--ink-2);margin-left:4px">Settled</b>&nbsp;on-chain</span><span class="num mut">on-chain state</span><span></span><span class="amt pos">pass</span></div>
+        <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>On-chain pools <b style="color:var(--ink-2);margin-left:4px">match the run</b></span><span class="num mut">pool reconcile</span><span></span><span class="amt pos">pass</span></div>
+        <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Real TxLINE score <b style="color:var(--ink-2);margin-left:4px">re-fetched</b></span><span class="num mut">independent feed</span><span></span><span class="amt pos">pass</span></div>
+        <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Derived outcome <b style="color:var(--ink-2);margin-left:4px">= on-chain resolution</b></span><span class="num mut">no typed winner</span><span></span><span class="amt pos">pass</span></div>
+        <div class="tx"><span></span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 12l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>CLV backtest <b style="color:var(--ink-2);margin-left:4px">reproduces</b></span><span class="num mut">committed cache</span><span></span><span class="amt pos">pass</span></div>
+      </div>
+      <div class="cardfoot" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="mut">6 of 6 pass — read from public RPC, the real TxLINE feed, and this repo.</span><span id="vmkt" class="fnt">settled market ↗</span></div>
+    </div>
   </div>
 
   <footer>
     <div class="foot">
-      <span class="brand" style="font-size:13px"><svg class="mark" style="width:20px;height:20px" viewBox="0 0 32 32" fill="none"><path d="M8 21 L13 21 L16 11 L19 21 L24 21" stroke="#35e6c2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="11" r="2" fill="#f2c968"/></svg>EdgeBot</span>
+      <span style="color:var(--muted)">EdgeBot</span>
       <span class="dot">·</span>
       <a href="https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet" target="_blank" rel="noopener">own program ↗</a>
       <a href="https://github.com/Clintobi/edgebot-txline" target="_blank" rel="noopener">source</a>
@@ -399,176 +350,120 @@
       <span>TxODDS × Solana World Cup — Trading Tools &amp; Agents · independent submission</span>
     </div>
   </footer>
-</main>
+</div>
 
 <script>
 document.documentElement.classList.add('js');
-const RM = matchMedia('(prefers-reduced-motion:reduce)').matches;
-const NS='http://www.w3.org/2000/svg', el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const NS='http://www.w3.org/2000/svg',el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const pct=x=>(x*100).toFixed(1)+'%';
-const CO={ink:'#eef2f8',sig:'#35e6c2',proof:'#f2c968',faint:'#586479',line:'#232d3e',muted:'#9aa6b8',neg:'#ff7d8c',bg:'#06080c'};
+const CO={ink:'#ffffff',accent:'#5266eb',accentL:'#8da4f5',pos:'#77c599',neg:'#fc92b4',faint:'#70707d',line:'#363644',muted:'#9d9da8',bg:'#171721',surface:'#1e1e2a'};
 
-/* reveal — enhancement only; never gates content blank (in-view reveals now, failsafe guarantees visibility) */
-(function(){
-  const els=[...document.querySelectorAll('.rise')];
-  const reveal=n=>n.classList.add('in');
-  if(RM){els.forEach(reveal);return;}
-  const inView=n=>{const r=n.getBoundingClientRect();return r.top<innerHeight*0.98&&r.bottom>0;};
-  els.forEach(n=>{if(inView(n))reveal(n);});                 // anything already visible on load reveals immediately
-  const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){reveal(e.target);io.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+/* reveal */
+(function(){const els=[...document.querySelectorAll('.rise')];const rv=n=>n.classList.add('in');
+  if(RM){els.forEach(rv);return;}
+  const inV=n=>{const r=n.getBoundingClientRect();return r.top<innerHeight*0.98&&r.bottom>0;};
+  els.forEach(n=>{if(inV(n))rv(n);});
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){rv(e.target);io.unobserve(e.target);}}),{threshold:.1,rootMargin:'0px 0px -6% 0px'});
   els.forEach(n=>{if(!n.classList.contains('in'))io.observe(n);});
-  setTimeout(()=>els.forEach(reveal),1200);                  // failsafe: nothing stays hidden
-})();
+  setTimeout(()=>els.forEach(rv),1200);})();
 
-/* rail scrollspy */
-(function(){
-  const btns=[...document.querySelectorAll('.railbtn[data-spy]')];
-  const map=Object.fromEntries(btns.map(b=>[b.dataset.spy,b]));
-  const spy=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){
-    btns.forEach(b=>b.classList.remove('active')); const b=map[e.target.id]; if(b)b.classList.add('active');
-  }});},{rootMargin:'-45% 0px -50% 0px'});
-  document.querySelectorAll('.grp').forEach(s=>spy.observe(s));
-})();
+/* nav active (scrollspy) */
+(function(){const navs=[...document.querySelectorAll('.nav[data-go]')];
+  const map={overview:'position',position:'position',blotter:'blotter',verify:'verify',edge:'edge',risk:'edge'};
+  navs.forEach(n=>n.addEventListener('click',()=>{const id=map[n.dataset.go];const t=document.getElementById(id);if(t)t.scrollIntoView({behavior:'smooth',block:'start'});}));
+  const ids=['position','blotter','edge','verify'];
+  const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){
+    navs.forEach(n=>n.classList.remove('active'));
+    const key=Object.keys(map).find(k=>map[k]===e.target.id);
+    const n=navs.find(x=>x.dataset.go===(e.target.id==='position'?'position':e.target.id==='edge'?'edge':e.target.id));
+    if(n)n.classList.add('active');}}),{rootMargin:'-40% 0px -55% 0px'});
+  ids.forEach(id=>{const x=document.getElementById(id);if(x)spy.observe(x);});})();
 
-/* count-up (integer part; cents shown separately) */
-function upInt(node,target,signed){
-  const s=signed&&target>=0?'+':'';
-  if(RM){node.textContent=s+Math.round(target);return;}
-  const t0=performance.now();
-  const step=t=>{const p=Math.min(1,(t-t0)/900),v=target*(1-Math.pow(1-p,3));
-    node.textContent=s+Math.round(v);if(p<1)requestAnimationFrame(step);else node.textContent=s+Math.round(target);};
-  requestAnimationFrame(step);
-}
-function upVal(node,target,suf){
-  if(RM){node.textContent=target.toFixed(1)+suf;return;}
-  const t0=performance.now();
-  const step=t=>{const p=Math.min(1,(t-t0)/900),v=target*(1-Math.pow(1-p,3));
-    node.textContent=v.toFixed(1)+suf;if(p<1)requestAnimationFrame(step);else node.textContent=target.toFixed(1)+suf;};
-  requestAnimationFrame(step);
-}
+/* count-up */
+function up(node,target,dp,signed){const s=signed&&target>=0?'+':'';
+  if(RM){node.textContent=s+target.toFixed(dp);return;}
+  const t0=performance.now();const st=t=>{const p=Math.min(1,(t-t0)/850),v=target*(1-Math.pow(1-p,3));
+    node.textContent=s+v.toFixed(dp);if(p<1)requestAnimationFrame(st);else node.textContent=s+target.toFixed(dp);};requestAnimationFrame(st);}
 
-/* ── cockpit convergence chart ── */
-let SIG={rounds:[0,.286,.444,.519,.562,.591],fair:.725};
-(function(){
-  const c=document.getElementById('sig'),x=c.getContext('2d');let W,H,DPR,raf,tp=0;
+/* balance chart */
+let SIG={rounds:[0,.286,.444,.545,.615],fair:.725};
+(function(){const c=document.getElementById('bchart'),x=c.getContext('2d');let W,H,DPR,raf,tp=0;
   function size(){DPR=Math.min(2,devicePixelRatio||1);W=c.clientWidth;H=c.clientHeight;c.width=W*DPR;c.height=H*DPR;x.setTransform(DPR,0,0,DPR,0,0);}
   new ResizeObserver(size).observe(c);size();
-  function draw(ts){
-    const r=SIG.rounds,fair=SIG.fair,n=r.length,pad=14,padT=16,padB=22;
-    const X=i=>pad+i/Math.max(n-1,1)*(W-pad*2);
-    const yTop=padT, yBot=H-padB, span=yBot-yTop;
-    const Y=v=>yBot - (v/1)*span;                 // 0..1 mapped into band
+  function draw(){const r=SIG.rounds,fair=SIG.fair,n=r.length,padX=20,padT=14,padB=12;
+    const X=i=>padX+i/Math.max(n-1,1)*(W-padX*2),yT=padT,yB=H-padB,Y=v=>yB-(v/1)*(yB-yT);
     x.clearRect(0,0,W,H);
-    // grid
-    x.strokeStyle='rgba(35,45,62,.5)';x.lineWidth=1;
-    for(let gy=yTop;gy<=yBot+1;gy+=(span/4)){x.beginPath();x.moveTo(pad,gy);x.lineTo(W-pad,gy);x.stroke();}
-    // fair line
-    x.save();x.setLineDash([5,6]);x.strokeStyle='rgba(53,230,194,.55)';x.lineWidth=1.4;
-    x.beginPath();x.moveTo(pad,Y(fair));x.lineTo(W-pad,Y(fair));x.stroke();x.restore();
-    // area
-    x.beginPath();x.moveTo(X(0),yBot);r.forEach((v,i)=>x.lineTo(X(i),Y(v)));x.lineTo(X(n-1),yBot);x.closePath();
-    const g=x.createLinearGradient(0,yTop,0,yBot);g.addColorStop(0,'rgba(53,230,194,.18)');g.addColorStop(1,'rgba(53,230,194,0)');
-    x.fillStyle=g;x.fill();
-    // curve
-    x.beginPath();r.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
-    x.strokeStyle=CO.sig;x.lineWidth=2.4;x.lineJoin='round';x.shadowColor='rgba(53,230,194,.5)';x.shadowBlur=12;x.stroke();x.shadowBlur=0;
-    // nodes
-    r.forEach((v,i)=>{x.beginPath();x.arc(X(i),Y(v),3.2,0,7);x.fillStyle=CO.bg;x.fill();x.lineWidth=1.6;x.strokeStyle=CO.sig;x.stroke();});
-    // x-axis round labels (context, Mercury-style)
-    x.fillStyle=CO.faint;x.font="9px 'IBM Plex Mono',ui-monospace,monospace";x.textAlign='center';x.textBaseline='alphabetic';
-    r.forEach((v,i)=>x.fillText('R'+(i+1),X(i),yBot+15));x.textAlign='left';
-    // gold pulse at last (proven / settled endpoint)
-    const li=n-1, pr=RM?4:4+Math.sin(tp*.045)*1.4;
-    x.beginPath();x.arc(X(li),Y(r[li]),pr,0,7);x.fillStyle=CO.proof;x.shadowColor=CO.proof;x.shadowBlur=15;x.fill();x.shadowBlur=0;
-    tp++; if(!RM)raf=requestAnimationFrame(draw);
-  }
-  window.__drawSig=()=>{cancelAnimationFrame(raf);draw(0);};
-  window.__drawSig();
-})();
+    x.strokeStyle='rgba(54,54,68,.6)';x.lineWidth=1;
+    for(let k=0;k<=3;k++){const gy=yT+(yB-yT)*k/3;x.beginPath();x.moveTo(padX,gy);x.lineTo(W-padX,gy);x.stroke();}
+    x.save();x.setLineDash([4,5]);x.strokeStyle='rgba(141,164,245,.55)';x.lineWidth=1.3;x.beginPath();x.moveTo(padX,Y(fair));x.lineTo(W-padX,Y(fair));x.stroke();x.restore();
+    x.beginPath();x.moveTo(X(0),yB);r.forEach((v,i)=>x.lineTo(X(i),Y(v)));x.lineTo(X(n-1),yB);x.closePath();
+    const g=x.createLinearGradient(0,yT,0,yB);g.addColorStop(0,'rgba(82,102,235,.28)');g.addColorStop(1,'rgba(82,102,235,0)');x.fillStyle=g;x.fill();
+    x.beginPath();r.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.strokeStyle=CO.accent;x.lineWidth=2.2;x.lineJoin='round';x.stroke();
+    r.forEach((v,i)=>{x.beginPath();x.arc(X(i),Y(v),3,0,7);x.fillStyle=CO.surface;x.fill();x.lineWidth=1.6;x.strokeStyle=CO.accent;x.stroke();});
+    const li=n-1,pr=RM?4:4+Math.sin(tp*.045)*1.3;x.beginPath();x.arc(X(li),Y(r[li]),pr,0,7);x.fillStyle=CO.accentL;x.shadowColor=CO.accentL;x.shadowBlur=13;x.fill();x.shadowBlur=0;
+    tp++;if(!RM)raf=requestAnimationFrame(draw);}
+  window.__bchart=()=>{cancelAnimationFrame(raf);draw();};window.__bchart();})();
 
-/* ── quant charts (identical treatment) ── */
-const Q={ power:[[10,.059],[20,.105],[30,.143],[50,.253],[75,.366],[100,.501],[150,.729],[200,.855],[300,.970]],
+/* quant charts */
+const Q={power:[[10,.059],[20,.105],[30,.143],[50,.253],[75,.366],[100,.501],[150,.729],[200,.855],[300,.970]],
   kelly:[{f:.10,g:.303,ruin:0},{f:.25,g:.546,ruin:0},{f:.50,g:.642,ruin:.003},{f:1,g:.671,ruin:.011}],
-  rel:[{lo:0,n:5,pred:.095,act:0},{lo:.2,n:8,pred:.292,act:.375},{lo:.4,n:2,pred:.520,act:1},{lo:.6,n:4,pred:.688,act:.75},{lo:.8,n:1,pred:.828,act:0}] };
-(function(){const W=320,Hh=170,m=30,g=document.getElementById('calib');
-  const X=v=>m+v*(W-m-10),Y=v=>Hh-m-v*(Hh-m-10);
-  [0,.5,1].forEach(t=>{g.appendChild(el('line',{x1:X(t),y1:Y(0),x2:X(t),y2:Y(1),stroke:CO.line,opacity:.6}));g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(1),y2:Y(t),stroke:CO.line,opacity:.6}));});
-  g.appendChild(el('line',{x1:X(0),y1:Y(0),x2:X(1),y2:Y(1),stroke:CO.faint,'stroke-dasharray':'3 3',opacity:.8}));
-  Q.rel.forEach(b=>{if(!b.n)return;const r=4.5+Math.sqrt(b.n)*3.3;g.appendChild(el('circle',{cx:X(b.pred),cy:Y(b.act),r,fill:'rgba(53,230,194,.15)',stroke:CO.sig,'stroke-width':1.5}));});
-  g.appendChild(el('text',{x:X(.5),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9.5})).textContent='predicted →   actual ↑';
-})();
-(function(){const W=320,Hh=170,m=30,g=document.getElementById('power'),C=Q.power,mx=300;
-  const X=n=>m+(n/mx)*(W-m-10),Y=p=>Hh-m-p*(Hh-m-12);
-  [.2,.5,.8].forEach(t=>{g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(mx),y2:Y(t),stroke:CO.line,opacity:.6}));g.appendChild(el('text',{x:m-6,y:Y(t)+3,'text-anchor':'end',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9})).textContent=(t*100)+'%';});
-  g.appendChild(el('line',{x1:X(0),y1:Y(.8),x2:X(mx),y2:Y(.8),stroke:CO.proof,'stroke-dasharray':'3 3',opacity:.85}));
+  rel:[{n:5,pred:.095,act:0},{n:8,pred:.292,act:.375},{n:2,pred:.520,act:1},{n:4,pred:.688,act:.75},{n:1,pred:.828,act:0}]};
+(function(){const W=320,Hh=170,m=30,g=document.getElementById('calib');const X=v=>m+v*(W-m-10),Y=v=>Hh-m-v*(Hh-m-10);
+  [0,.5,1].forEach(t=>{g.appendChild(el('line',{x1:X(t),y1:Y(0),x2:X(t),y2:Y(1),stroke:CO.line,opacity:.7}));g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(1),y2:Y(t),stroke:CO.line,opacity:.7}));});
+  g.appendChild(el('line',{x1:X(0),y1:Y(0),x2:X(1),y2:Y(1),stroke:CO.faint,'stroke-dasharray':'3 3'}));
+  Q.rel.forEach(b=>{if(!b.n)return;const r=4.5+Math.sqrt(b.n)*3.2;g.appendChild(el('circle',{cx:X(b.pred),cy:Y(b.act),r,fill:'rgba(82,102,235,.18)',stroke:CO.accent,'stroke-width':1.5}));});
+  g.appendChild(el('text',{x:X(.5),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'Roboto Mono','font-size':9.5})).textContent='predicted →   actual ↑';})();
+(function(){const W=320,Hh=170,m=30,g=document.getElementById('power'),C=Q.power,mx=300;const X=n=>m+(n/mx)*(W-m-10),Y=p=>Hh-m-p*(Hh-m-12);
+  [.2,.5,.8].forEach(t=>{g.appendChild(el('line',{x1:X(0),y1:Y(t),x2:X(mx),y2:Y(t),stroke:CO.line,opacity:.7}));g.appendChild(el('text',{x:m-6,y:Y(t)+3,'text-anchor':'end',fill:CO.faint,'font-family':'Roboto Mono','font-size':9})).textContent=(t*100)+'%';});
+  g.appendChild(el('line',{x1:X(0),y1:Y(.8),x2:X(mx),y2:Y(.8),stroke:CO.accentL,'stroke-dasharray':'3 3'}));
   let d=`M ${X(C[0][0])} ${Y(C[0][1])}`;C.forEach(p=>d+=` L ${X(p[0])} ${Y(p[1])}`);
-  g.appendChild(el('path',{d:d+` L ${X(mx)} ${Y(0)} L ${X(10)} ${Y(0)} Z`,fill:'rgba(53,230,194,.10)'}));
-  g.appendChild(el('path',{d,fill:'none',stroke:CO.sig,'stroke-width':2.2}));
-  g.appendChild(el('circle',{cx:X(20),cy:Y(.105),r:4.5,fill:CO.proof,stroke:CO.bg,'stroke-width':1.6}));
-  g.appendChild(el('text',{x:X(20)+8,y:Y(.105)-6,fill:CO.proof,'font-family':'IBM Plex Mono','font-size':10})).textContent='N=20 → 10.5%';
-  [20,100,200,300].forEach(n=>g.appendChild(el('text',{x:X(n),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'IBM Plex Mono','font-size':9})).textContent=n);
-})();
+  g.appendChild(el('path',{d:d+` L ${X(mx)} ${Y(0)} L ${X(10)} ${Y(0)} Z`,fill:'rgba(82,102,235,.12)'}));
+  g.appendChild(el('path',{d,fill:'none',stroke:CO.accent,'stroke-width':2.2}));
+  g.appendChild(el('circle',{cx:X(20),cy:Y(.105),r:4.5,fill:CO.accentL,stroke:CO.bg,'stroke-width':1.6}));
+  g.appendChild(el('text',{x:X(20)+8,y:Y(.105)-6,fill:CO.accentL,'font-family':'Roboto Mono','font-size':10})).textContent='N=20 → 10.5%';
+  [20,100,200,300].forEach(n=>g.appendChild(el('text',{x:X(n),y:Hh-8,'text-anchor':'middle',fill:CO.faint,'font-family':'Roboto Mono','font-size':9})).textContent=n);})();
 (function(){const W=320,Hh=170,m=28,g=document.getElementById('kelly'),K=Q.kelly,mg=.7,bw=(W-m-10)/K.length;
   K.forEach((k,i)=>{const h=(k.g/mg)*(Hh-m-26),xx=m+i*bw+bw*.2,w=bw*.6,yy=Hh-m-h,hot=k.f===.25;
-    g.appendChild(el('rect',{x:xx,y:yy,width:w,height:h,rx:4,fill:hot?CO.sig:'rgba(53,230,194,.28)'}));
-    g.appendChild(el('text',{x:xx+w/2,y:yy-5,'text-anchor':'middle',fill:hot?CO.sig:CO.muted,'font-family':'IBM Plex Mono','font-size':10})).textContent='+'+k.g.toFixed(2);
-    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+13,'text-anchor':'middle',fill:hot?CO.ink:CO.faint,'font-family':'IBM Plex Mono','font-size':10})).textContent=k.f.toFixed(2)+'×';
-    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+24,'text-anchor':'middle',fill:k.ruin>0?CO.neg:CO.faint,'font-family':'IBM Plex Mono','font-size':8})).textContent=k.ruin>0?(k.ruin*100).toFixed(1)+'% ruin':'0% ruin';});
-})();
+    g.appendChild(el('rect',{x:xx,y:yy,width:w,height:h,rx:4,fill:hot?CO.accent:'rgba(82,102,235,.3)'}));
+    g.appendChild(el('text',{x:xx+w/2,y:yy-5,'text-anchor':'middle',fill:hot?CO.accentL:CO.muted,'font-family':'Roboto Mono','font-size':10})).textContent='+'+k.g.toFixed(2);
+    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+13,'text-anchor':'middle',fill:hot?CO.ink:CO.faint,'font-family':'Roboto Mono','font-size':10})).textContent=k.f.toFixed(2)+'×';
+    g.appendChild(el('text',{x:xx+w/2,y:Hh-m+24,'text-anchor':'middle',fill:k.ruin>0?CO.neg:CO.faint,'font-family':'Roboto Mono','font-size':8})).textContent=k.ruin>0?(k.ruin*100).toFixed(1)+'% ruin':'0% ruin';});})();
 
-/* ── live run (fetch real data) ── */
+/* live data */
 fetch('./last-run.json').then(r=>r.json()).then(d=>{
   const home=(d.teams?d.teams.split(' v ')[0]:'home');
   const mkt=`https://explorer.solana.com/address/${d.market}?cluster=devnet`;
-  document.getElementById('mkt-addr').innerHTML=`<a href="${mkt}">${d.market.slice(0,4)}…${d.market.slice(-4)}</a>`;
-  document.getElementById('explorer-btn').href=mkt;
+  document.getElementById('pill-explorer').href=mkt;
+  document.getElementById('pos-mktlink').href=mkt;
   document.getElementById('vmkt').innerHTML=`<a href="${mkt}">settled market on Explorer ↗</a>`;
-  const bets=d.decisions.filter(x=>x.action!=='HOLD');
-  const fair=bets.length?bets[0].fair:.725;
-  document.getElementById('faircap').textContent='fair '+pct(fair);
+  document.getElementById('pos-fixture').textContent='fixture '+(d.fixture||'');
+  document.getElementById('pos-market').textContent=home+' to win outright';
 
-  // cockpit numbers
-  const pnl=typeof d.pnl==='number'?d.pnl:0;
-  const pnlEl=document.getElementById('pnl'); pnlEl.className='pnlnum '+(pnl>=0?'pos':'neg');
-  document.getElementById('pnl-cents').textContent='.'+Math.round(Math.abs(pnl*10)%10);
-  const roiPct=d.staked?(pnl/d.staked*100):0;
-  const roiEl=document.getElementById('roi'); roiEl.className='delta '+(pnl>=0?'pos':'neg');
-  roiEl.textContent=(pnl>=0?'▲ +':'▼ ')+Math.abs(roiPct).toFixed(0)+'% return · settled from the real score';
-  const seen={done:false};
-  const trigger=()=>{ if(seen.done)return; seen.done=true;
-    upInt(document.getElementById('pnl-int'),pnl,true);
-    upVal(document.getElementById('staked'),d.staked,'');
-    upVal(document.getElementById('collected'),d.collected,''); };
-  if(RM){trigger();}else{
-    const io=new IntersectionObserver((es)=>{if(es[0].isIntersecting)trigger();},{threshold:.4});
-    io.observe(pnlEl);
-  }
-  document.getElementById('nbets').textContent=String(d.decisions.filter(x=>x.action!=='HOLD').length);
-  document.getElementById('ticker-pnl').textContent=(pnl>=0?'+':'')+pnl.toFixed(1)+' USDC';
+  const pnl=+d.pnl||0,cents=Math.round(Math.abs(pnl*100)%100).toString().padStart(2,'0');
+  document.getElementById('bal-c').textContent='.'+cents;
+  document.getElementById('balnum').className='balnum '+(pnl>=0?'pos':'neg');
+  const start=()=>{up(document.getElementById('bal-int'),pnl,0,true);};
+  if(RM)start();else{const io=new IntersectionObserver(e=>{if(e[0].isIntersecting){start();io.disconnect();}},{threshold:.5});io.observe(document.getElementById('balnum'));}
+  document.getElementById('d-collected').innerHTML=document.getElementById('d-collected').innerHTML.replace('—',(d.collected).toFixed(2)+' collected');
+  document.getElementById('d-staked').innerHTML=document.getElementById('d-staked').innerHTML.replace('—',(d.staked).toFixed(2)+' staked');
 
-  if(d.realResult){
-    const rr=d.realResult, out=rr.outcome.replace(/\s*\(.*\)/,'');
-    document.getElementById('mkt-line').innerHTML=`<b>${home} to win outright</b> · TxLINE fixture ${d.fixture||''} · settled <b>${out}</b> from the real <b>${home} ${rr.g1}–${rr.g2}</b> result.`;
-    document.getElementById('pos-status').innerHTML=`<span class="d"></span> SETTLED ${out}`;
-  } else {
-    document.getElementById('mkt-line').innerHTML=`<b>${home} to win outright</b> — autonomous run on devnet.`;
-  }
+  if(d.final){document.getElementById('pos-yes').innerHTML=(d.final.yes/1e6).toFixed(1)+' <small>USDC</small>';
+    document.getElementById('pos-no').innerHTML=(d.final.no/1e6).toFixed(1)+' <small>USDC</small>';}
+  if(d.realResult){const out=d.realResult.outcome.replace(/\s*\(.*\)/,'');
+    document.getElementById('pos-settle').innerHTML=`<span class="${out.startsWith('YES')?'pos':'neg'}">${out}</span> · ${home} ${d.realResult.g1}–${d.realResult.g2}`;}
 
-  // blotter
-  const bl=document.getElementById('blot');
+  const fair=(d.decisions.find(x=>x.action!=='HOLD')||{}).fair||.725;
+  SIG={rounds:d.decisions.map(z=>z.marketYes),fair};if(window.__bchart)window.__bchart();
+  const ax=document.getElementById('baxis');d.decisions.forEach((z,i)=>{const s=document.createElement('span');s.textContent='R'+(i+1);ax.appendChild(s);});
+
+  const tl=document.getElementById('txlist');
   d.decisions.forEach(z=>{const buy=z.action!=='HOLD';
-    const size=buy&&z.fracOfBankroll!=null?' · '+(z.fracOfBankroll*100).toFixed(1)+'%':'';
-    const act=buy?'BUY '+(z.amount/1e6).toFixed(1)+size:'HOLD · converged';
-    bl.insertAdjacentHTML('beforeend',`<div class="r"><span class="rn">${z.round}</span><span>${pct(z.fair)}</span><span>${pct(z.marketYes)}</span><span class="${z.edge>=0?'pos':'neg'}">${z.edge>=0?'+':''}${pct(z.edge)}</span><span class="${buy?'buy':'hold'}">${act}</span></div>`);});
+    const amt=buy?'BUY '+(z.amount/1e6).toFixed(1)+' USDC':'HOLD';
+    tl.insertAdjacentHTML('beforeend',`<div class="tx"><span class="rn">${z.round}</span><span class="ta"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Buy YES · ${home}</span><span class="num tnum">${pct(z.marketYes)} → ${pct(z.fair)}</span><span class="tnum ${z.edge>=0?'pos':'neg'}">${z.edge>=0?'+':''}${pct(z.edge)}</span><span class="amt ${buy?'':'hold'}">${amt}</span></div>`);});
   if(d.realResult){const won=d.realResult.outcome.startsWith('YES');
-    bl.insertAdjacentHTML('beforeend',`<div class="stl"><span class="t">PROOF-SETTLE</span><span>Real TxLINE result <b>${home} ${d.realResult.g1}–${d.realResult.g2}</b> → resolves <b class="${won?'pos':'neg'}">${won?'YES':'NO'}</b>, derived on-chain via CPI to validate_stat — no one typed the outcome.</span></div>`);}
-
-  // real convergence into the cockpit chart
-  SIG={rounds:d.decisions.map(z=>z.marketYes),fair};
-  if(window.__drawSig)window.__drawSig();
-}).catch(()=>{
-  document.getElementById('mkt-line').textContent='Run data unavailable — serve this page over HTTP so it can read last-run.json.';
-});
+    tl.insertAdjacentHTML('beforeend',`<div class="settle"><span class="t">PROOF-SETTLE</span><span>Real TxLINE result <b>${home} ${d.realResult.g1}–${d.realResult.g2}</b> → resolves <b class="${won?'pos':'neg'}">${won?'YES':'NO'}</b>, derived on-chain via CPI to validate_stat — no one typed the outcome.</span></div>`);}
+}).catch(()=>{document.getElementById('pos-settle').textContent='run data unavailable';});
 </script>
 </body>
 </html>
