@@ -59,8 +59,9 @@ that anyone can audit. One take, no editing, no AI video. Fumbles are fine — k
 
 ### 2:50 – 3:00 · Close
 **Show:** the dashboard.
-> "That's EdgeBot: provably-fair sports markets an operator or desk can run — liquidity and
-> settlement powered by TxLINE, and an audit anyone can run. Thanks for watching."
+> "That's EdgeBot — an autonomous market-making agent that runs provably-fair sports markets:
+> it prices and provides liquidity from TxLINE, settles from proof, and anyone can audit it.
+> Thanks for watching."
 
 Stop recording. Done.
 
