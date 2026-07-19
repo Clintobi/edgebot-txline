@@ -1,0 +1,7 @@
+services:
+  verify:
+    build: .
+    command: npm run judge:verify
+  replay:
+    build: .
+    command: npm run daemon:replay

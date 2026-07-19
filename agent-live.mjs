@@ -31,10 +31,12 @@ const conn = new Connection(RPC, 'confirmed')
 const operator = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(process.env.OPERATOR_KEYPAIR, 'utf8'))))
 const creds = JSON.parse(fs.readFileSync(process.env.CREDS, 'utf8'))
 const apiToken = typeof creds.apiToken === 'string' ? creds.apiToken : creds.apiToken.token
-// persistent, clearly-separate EdgeBot trading wallet
-const EB_PATH = process.env.EDGEBOT_KEYPAIR || '/Users/mac/fulltime-keys/edgebot-trader.json'
-if (!fs.existsSync(EB_PATH)) fs.writeFileSync(EB_PATH, JSON.stringify(Array.from(Keypair.generate().secretKey)))
-const edgebot = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(EB_PATH, 'utf8'))))
+// Clearly separate EdgeBot trading wallet. No machine-specific default path:
+// provide EDGEBOT_KEYPAIR for a persistent identity, or get a fresh ephemeral
+// demo wallet. The zero-setup judge path never creates or reads any wallet.
+const edgebot = process.env.EDGEBOT_KEYPAIR
+  ? Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(process.env.EDGEBOT_KEYPAIR, 'utf8'))))
+  : Keypair.generate()
 const EX = s => `https://explorer.solana.com/tx/${s}?cluster=devnet`
 const ADDR = k => `https://explorer.solana.com/address/${k}?cluster=devnet`
 

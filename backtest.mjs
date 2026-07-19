@@ -20,9 +20,8 @@
 //   FIXTURES=1,2,3 ENTRY_FRAC=0.5 node backtest.mjs
 import fs from 'fs'
 import { clvGrade } from './lib.mjs'
-const API = 'https://txline-dev.txodds.com'
-const creds = JSON.parse(fs.readFileSync(process.env.CREDS || '/Users/mac/fulltime-keys/txline-creds.json', 'utf8'))
-const apiToken = typeof creds.apiToken === 'string' ? creds.apiToken : creds.apiToken.token
+// This script is intentionally cache-only. It never calls TxLINE, so the
+// verifier and Docker image must not require credentials just to reproduce it.
 const ENTRY_FRAC = Number(process.env.ENTRY_FRAC || 0.5)   // where in the pre-KO window EdgeBot enters
 const TEAM = { 1144:'India',1215:'Myanmar',1225:'New Zealand',1378:'Vietnam',1489:'Argentina',1519:'Australia',1634:'Brazil',1888:'England',1999:'France',2431:'Liechtenstein',3021:'Spain',45856:'Gibraltar' }
 const nm = id => TEAM[id] || `#${id}`

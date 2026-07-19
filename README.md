@@ -1,19 +1,23 @@
-# EdgeBot — Autonomous Odds-Driven Trading Agent
+# EdgeBot — Verifiable Tick-to-Transaction Trading
 
 **TxODDS × Solana World Cup Hackathon · Trading Tools and Agents track**
 
-EdgeBot ingests TxLINE odds, computes each side's fair win probability, compares
-it to an **on-chain prediction market's pool-implied price**, and **autonomously
-stakes USDC on the mispriced (+EV) side** — no manual input. It re-evaluates in a
-loop until the market converges to fair value, then **settles the market from the
-real match result fetched from TxLINE** and collects.
+EdgeBot is an autonomous TxLINE → Solana control plane: a persistent SSE daemon
+re-prices on **every odds tick**, a deterministic policy gate records every
+ALLOW/DENY in a tamper-evident ledger, and the on-chain market settles from a
+TxLINE Merkle proof whose winner the caller cannot choose.
+
+The headline novelty is independently reproducible: `npm run judge:verify` needs
+**no wallet, keypair, API credential, or environment setup**. It re-derives the
+public devnet settlement from the real score, reproduces the CLV study, replays
+per-tick pricing, and verifies the policy ledger's hash chain.
 
 **Dashboard (application access):** https://edgebot-txline.vercel.app
 
 ## Signal → decision → execution → honest settlement
 
-1. **Ingest** TxLINE odds. The `TXLineStablePriceDemargined` book gives fair
-   implied probabilities directly (`Pct = [part1, draw, part2]`).
+1. **Stream** TxLINE odds over persistent SSE. Each unique 1X2 event triggers a
+   fresh chain-state read and valuation; reconnects resume with `Last-Event-ID`.
 2. **Fair price.** For a "team1 wins outright" market, `P(YES) = part1 / 100` —
    the **raw** home-win probability. The draw and the away win both belong in NO,
    so we do **not** renormalize to a two-way (that would inflate the favourite —
@@ -22,16 +26,60 @@ real match result fetched from TxLINE** and collects.
 4. **Edge** `= fair − market`. If `|edge| > 3%`, stake the underpriced side.
    Size with **fractional (quarter) Kelly**: `f* = (p − q)/(1 − q)`, stake
    `0.25·f*` of bankroll, capped per-position (5%) and in aggregate (20%). Else **HOLD**.
-5. **Risk / kill-switch**: never trade on a stale or malformed signal, and halt once the
-   aggregate exposure cap is hit — a desk does not trade blind or unbounded.
-6. **Execute**: submit a `deposit_yes`/`deposit_no` transaction. Repeat.
-6. **Settle from the real result.** After the match, EdgeBot fetches TxLINE's
+5. **Policy gate / audit**: every intent fails closed on malformed or stale data,
+   fixture allowlist, edge sanity, per-order size, and aggregate exposure. Every
+   ALLOW or DENY is appended to a SHA-256-linked JSONL ledger.
+6. **Execute**: submit `deposit_yes`/`deposit_no` only after ALLOW. The next odds
+   tick repeats the full stream → fresh price → gate → execution path.
+7. **Settle from the real result.** After the match, EdgeBot fetches TxLINE's
    **finalised score** (goal stat keys `1`,`2`), derives the outcome, and settles
    the market on **what actually happened** — it never passes a chosen outcome. If
    the fixture is not finalised, it refuses to settle.
 
 Fully autonomous: the inputs are the live odds and on-chain state; the outcome is
 the real score. No human picks the winner.
+
+## Live per-tick autonomy + auditable control plane
+
+```bash
+npm run daemon:replay  # zero credentials: 4 SSE ticks → 4 valuations → gate ledger
+
+# real TxLINE SSE, safe paper executor:
+FIXTURE=<fixture> CREDS=txline-creds.json npm run daemon
+
+# opt-in real devnet deposits (explicit wallet and market mint):
+FIXTURE=<fixture> CREDS=txline-creds.json EDGEBOT_KEYPAIR=trader.json \
+MINT=<token-2022-mint> EXECUTION=onchain npm run daemon
+```
+
+The stream client handles chunk boundaries, heartbeats, multiline data, retry
+hints, exponential reconnect, and replay deduplication. The risk budget survives
+restarts because exposure is reconstructed from executed audit records. See
+[`SUBMISSION_TECHNICAL_DOCUMENTATION.md`](SUBMISSION_TECHNICAL_DOCUMENTATION.md).
+
+### Public live SSE → policy → transaction proof (19 July 2026)
+
+This is no longer replay-only evidence. For TxLINE fixture `18257739` (Spain v
+Argentina), the daemon received live 1X2 SSE event `1784469300000:10194`:
+
+```text
+TxLINE P(Spain win): 31.046%     fresh on-chain YES price: 25.000%
+edge: +6.046pp                   policy: ALLOW
+quarter-Kelly deposit: 20.153333 test USDC on YES
+```
+
+The independent operator had supplied 100 YES / 300 NO test-USDC liquidity; that
+liquidity is a disclosed counterparty price, not a claimed signal. An earlier live
+tick at a 33.333% market price produced only 2.335pp edge and was **DENIED**, proving
+the threshold was not relaxed for the demo.
+
+The successful deposit is public on devnet:
+[`4qfLpfi…BRSCc`](https://explorer.solana.com/tx/4qfLpfiXnZ8vUo7BbpLkTR2BjXGryoAS1Hx7XbFQc9WDg5YGbrckfN7UM3GpNXFnSpDudCVNyKaFBrxf1eTBRSCc?cluster=devnet).
+The sanitized raw event, both linked gate decisions, and transaction receipt are
+committed in [`evidence/live-daemon-proof-2026-07-19.json`](evidence/live-daemon-proof-2026-07-19.json).
+`npm run judge:verify` independently fingerprints the raw event, checks the ledger
+chain, fetches the transaction, confirms its trader/market/program accounts, and
+checks that the gated amount landed in the market pools.
 
 ## Live demo (devnet) — a real, finished fixture
 
@@ -130,6 +178,9 @@ create, against an independent counterparty (two distinct wallets, both on Explo
 OPERATOR_KEYPAIR=deployer.json CREDS=txline-creds.json FIXTURE=<fresh finished fixture> node agent-live.mjs
 ```
 
+`EDGEBOT_KEYPAIR` is optional here: provide it for a persistent trader identity,
+or the demo creates an ephemeral independent trader. There is no machine-specific path.
+
 ## Verify it yourself — no trust required
 
 ```bash
@@ -141,8 +192,15 @@ npm test               # unit suite over the pure quant logic (lib.mjs)
 confirms it is **Settled**, re-fetches the **real TxLINE final score**, re-derives the outcome,
 and checks that the **on-chain resolution equals the derived outcome** (proving the winner was
 never a number we typed in), that the pools match the reported run, and that the CLV backtest
-**reproduces** from the committed cache. `npm test` covers `lib.mjs` — raw fair prob (the
-draw-bug fix), Kelly sizing, CLV, outcome derivation, Brier.
+**reproduces** from the committed cache. It also runs the per-tick daemon replay and verifies
+that its ALLOW/DENY ledger is hash-chain intact. `npm test` covers SSE chunking, tick filtering,
+fresh repricing, fail-closed policy rules, ledger tamper detection, Kelly sizing, CLV, outcome
+derivation, and Brier.
+
+The current verifier reports **14 independent checks**, including the captured
+live SSE → policy hash → successful devnet transaction chain.
+
+For a fully timed recording, follow [`DEMO_SCRIPT_4_MINUTES.md`](DEMO_SCRIPT_4_MINUTES.md).
 
 ## TxLINE endpoints used
 
@@ -155,6 +213,12 @@ draw-bug fix), Kelly sizing, CLV, outcome derivation, Brier.
 
 ```bash
 npm install
+# zero-setup judge path (no wallet, keypair, TxLINE credentials, or env vars):
+npm run judge:verify
+
+# identical one-command container path:
+docker compose run --rm verify
+
 # run against a finished fixture — the full loop completes in one pass:
 DEPLOYER_KEYPAIR=deployer.json CREDS=txline-creds.json REAL_FIXTURE=18202701 node agent.mjs
 
@@ -189,7 +253,8 @@ real TxLINE fixture id.
 
 ## Roadmap
 
-Built this round: CLV backtest, quarter-Kelly sizing, exposure caps, and a
-feed-health/exposure kill-switch. Next: a persistent SSE daemon that re-prices per
-tick on the live stream; two-sided market making with pre-settlement exit on edge
-reversal; a monitoring page (equity curve, rolling CLV, open exposure, kill-switch state).
+Built this round: persistent per-tick SSE repricing, reconnect/deduplication,
+policy-gated execution, a hash-chained decision ledger, CLV backtest,
+quarter-Kelly sizing, exposure caps, credential-free verifier, and containerized
+reproduction. Next: two-sided market making with pre-settlement exit on edge
+reversal and a monitoring page for equity, rolling CLV, exposure, and gate state.

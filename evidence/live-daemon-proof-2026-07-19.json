@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "description": "Sanitized public evidence: real TxLINE SSE tick -> policy gate -> EdgeBot devnet deposit",
+  "fixtureId": 18257739,
+  "fixture": "Spain v Argentina",
+  "market": "9MFd2oNWmtb5t7YWZNbWT4U3a3ztcE5wvQz9ctXU1Vw6",
+  "mint": "ByY1GZtQbwBVw2LWVYhMko586LjMEv89hbgv4JYg29yD",
+  "program": "AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8",
+  "operator": "pjiXeXzpkhxVDHsV7NdASniHSiJ4MLqyhKsebWG78Fw",
+  "trader": "2xECHeh7A249jvnmcB3Wd4RTkomRKx5qD3eKAKQZ2DBS",
+  "setup": {
+    "createMarketSignature": "4hLHR7mvkkGSjKHEcMmT6r8aFz1gL3fBwp8yEYKFwUGR2XSRPNCGmnLQb6Cm1SqS3MbNN4tB7iHw9i1JeeZdr4JW",
+    "seedYesSignature": "24SbtVGFsRKBDDCHjN5mEgrqzGcZvGVzMyxDWWPaTXpGZrXJ8NmEmAc1XSHSQfdo2EprvFaXppMy118ZrpoXzELQ",
+    "seedNoSignature": "5m6YARhgobx4uEkh7eaybd6GTpyXs1Gdhnoo8VJE1WU6YdtDqFu37rKLWnRA36gbuisPa746LDSNswugVbcydXKx",
+    "additionalNoLiquiditySignature": "41qGGVcm6RkdZ9t18mi7NNue5v4i7Byz5CqNZtt6fZPV1UmUgXJsBqzzdRxi8oRrjKzdN1MfKRV3dm9GuMQYk4ek"
+  },
+  "rawEvent": {
+    "capturedAt": "2026-07-19T13:58:57.004Z",
+    "stream": "odds",
+    "id": "1784469300000:10194",
+    "data": {
+      "FixtureId": 18257739,
+      "MessageId": "1838493176:00003:000290-10021-stab",
+      "Ts": 1784469536878,
+      "Bookmaker": "TXLineStablePriceDemargined",
+      "BookmakerId": 10021,
+      "SuperOddsType": "1X2_PARTICIPANT_RESULT",
+      "GameState": null,
+      "InRunning": false,
+      "MarketParameters": null,
+      "MarketPeriod": "half=1",
+      "PriceNames": ["part1", "draw", "part2"],
+      "Prices": [3221, 2071, 4836],
+      "Pct": ["31.046", "48.286", "20.678"]
+    }
+  },
+  "gateLedger": [
+    {
+      "version": 1,
+      "sequencePreviousHash": "GENESIS",
+      "recordedAt": "2026-07-19T13:54:44.472Z",
+      "decision": "DENY",
+      "reasons": ["edge below autonomous threshold"],
+      "intent": {
+        "fixtureId": 18257739,
+        "tickId": "88bdfc22b15bfaa2c2f07559ea12d10072e7b9b7bc766ce937d5dba7c78e2998",
+        "signalAt": 1784469283571,
+        "decidedAt": 1784469284472,
+        "bookmaker": "TXLineStablePriceDemargined",
+        "fair": 0.30998000000000003,
+        "marketYes": 0.3333333333333333,
+        "edge": 0.023353333333333226,
+        "side": "NO",
+        "amount": 17515000,
+        "pools": { "yes": 100000000, "no": 200000000 },
+        "streamEventId": "1784469000000:15260"
+      },
+      "executed": false,
+      "executionId": null,
+      "executionError": null,
+      "hash": "d4279d3b313542543653946100ecba29fd96ed09180ac4a9d70ebe306a6b52a7"
+    },
+    {
+      "version": 1,
+      "sequencePreviousHash": "d4279d3b313542543653946100ecba29fd96ed09180ac4a9d70ebe306a6b52a7",
+      "recordedAt": "2026-07-19T13:58:57.672Z",
+      "decision": "ALLOW",
+      "reasons": ["inside policy envelope"],
+      "intent": {
+        "fixtureId": 18257739,
+        "tickId": "b33b6b7f441ad97cc6ed9609a8250f0483ee60f1addc859b4964fd525798d8f2",
+        "signalAt": 1784469536878,
+        "decidedAt": 1784469537672,
+        "bookmaker": "TXLineStablePriceDemargined",
+        "fair": 0.31046,
+        "marketYes": 0.25,
+        "edge": 0.060460000000000014,
+        "side": "YES",
+        "amount": 20153333,
+        "pools": { "yes": 100000000, "no": 300000000 },
+        "streamEventId": "1784469300000:10194"
+      },
+      "executed": true,
+      "executionId": "4qfLpfiXnZ8vUo7BbpLkTR2BjXGryoAS1Hx7XbFQc9WDg5YGbrckfN7UM3GpNXFnSpDudCVNyKaFBrxf1eTBRSCc",
+      "executionError": null,
+      "hash": "2b434c274e7f4e05c18d727def57147993a3a57bcde46af34c9b137d59442279"
+    }
+  ],
+  "receipt": {
+    "streamEventId": "1784469300000:10194",
+    "tickId": "b33b6b7f441ad97cc6ed9609a8250f0483ee60f1addc859b4964fd525798d8f2",
+    "policyDecision": "ALLOW",
+    "policyLedgerHash": "2b434c274e7f4e05c18d727def57147993a3a57bcde46af34c9b137d59442279",
+    "transactionSignature": "4qfLpfiXnZ8vUo7BbpLkTR2BjXGryoAS1Hx7XbFQc9WDg5YGbrckfN7UM3GpNXFnSpDudCVNyKaFBrxf1eTBRSCc"
+  }
+}

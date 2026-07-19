@@ -1,0 +1,20 @@
+id: tick-1
+event: odds
+data: {"FixtureId":18257865,"SuperOddsType":"TXLineStablePriceDemargined1X2","Pct":[62,20,18],"Bookmaker":"TxLINE replay","Timestamp":1784390400000}
+
+id: tick-2
+event: odds
+data: {"FixtureId":18257865,"SuperOddsType":"TXLineStablePriceDemargined1X2","Pct":[58,22,20],"Bookmaker":"TxLINE replay","Timestamp":1784390401000}
+
+id: other-fixture
+event: odds
+data: {"FixtureId":999,"SuperOddsType":"TXLineStablePriceDemargined1X2","Pct":[50,25,25],"Timestamp":1784390401500}
+
+id: tick-3
+event: odds
+data: {"FixtureId":18257865,"SuperOddsType":"TXLineStablePriceDemargined1X2","Pct":[54,24,22],"Bookmaker":"TxLINE replay","Timestamp":1784390402000}
+
+id: tick-4
+event: odds
+data: {"FixtureId":18257865,"SuperOddsType":"TXLineStablePriceDemargined1X2","Pct":[51,25,24],"Bookmaker":"TxLINE replay","Timestamp":1784390403000}
+

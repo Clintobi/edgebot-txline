@@ -7,6 +7,10 @@
   "scripts": {
     "subscribe": "node subscribe.mjs",
     "agent": "node agent.mjs",
+    "daemon": "node live-daemon.mjs",
+    "daemon:replay": "node live-daemon.mjs --replay test/fixtures/odds-replay.sse",
+    "market:bootstrap": "node bootstrap-market.mjs",
+    "market:liquidity": "node add-liquidity.mjs",
     "backtest": "node backtest.mjs",
     "test": "vitest run",
     "judge:verify": "node verify.mjs",
