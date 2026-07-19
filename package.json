@@ -12,6 +12,7 @@
     "market:bootstrap": "node bootstrap-market.mjs",
     "market:liquidity": "node add-liquidity.mjs",
     "backtest": "node backtest.mjs",
+    "marketmaker": "node marketmaker.mjs",
     "test": "vitest run",
     "judge:verify": "node verify.mjs",
     "quant": "node quant-study.mjs"

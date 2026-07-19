@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Deterministic, offline gate — no keys, no network. Always green if the code is sound.
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test               # vitest: quant logic, SSE, policy gate, market-maker core
+      - run: npm run backtest        # cache-only CLV backtest (no credentials)
+      - run: npm run marketmaker      # market-making design + P&L decomposition (seeded)
+      - run: npm run quant            # seeded Monte-Carlo dossier
+
+  # The project's headline claim, run in CI: re-derive settlement + reproduce the
+  # study from PUBLIC devnet + real TxLINE, with no wallet, key, or account. This is
+  # network-dependent (devnet RPC / TxLINE), so it lives in its own job.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run judge:verify

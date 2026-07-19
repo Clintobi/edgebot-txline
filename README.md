@@ -175,8 +175,10 @@ fit to real data and validated against it** before any conclusion is drawn:
   (reliability 0.063 / resolution 0.109 / uncertainty 0.240); logistic calibration slope **0.89**.
 - **Model validation:** drawing outcomes `~Bernoulli(close)` reproduces Brier **0.177 vs 0.193** —
   the gap *is* the measured small-sample miscalibration, so the simulator is faithful, not tuned.
-- **Large-N (synthetic, labelled):** 50k markets → mean CLV **+8.89pp**, 95% CI [+8.85, +8.93]
-  (clears zero); P&L **+1.93pp/bet**.
+- **Large-N (synthetic, labelled):** 50k markets → mean CLV **+8.89pp**, 95% CI [+8.85, +8.93].
+  **Heavy caveat:** the generative model is fit to the *same ~20 real fixtures*, so this only shows
+  how the mechanism behaves *under that fitted model* — it is an illustration, **not independent
+  evidence**, and it cannot manufacture significance the real N=20 can't support.
 - **Power analysis — the honest core:** real N=20 has only **10.5% power**, so a non-significant
   result is *expected*, not evidence of no edge. Confirming it needs **N≈200** finished fixtures —
   which the gated free-tier endpoints don't allow, the same ceiling for every competitor.
@@ -186,6 +188,34 @@ fit to real data and validated against it** before any conclusion is drawn:
 
 Visual dossier (charts): the "EdgeBot — Quant Dossier" page. Reproduce it all locally with
 `npm run quant` — seeded, no keys, deterministic.
+
+## Market-making mode (`marketmaker.mjs`) — a design, not a profit claim
+
+The directional value rule is deliberately simple. The more sophisticated — and more honest —
+design is to stop *taking* and start *making*: quote **both** sides of the market anchored to the
+live TxLINE fair, skew the quotes by inventory (a simplified Avellaneda–Stoikov reservation price
+in [`lib/mm.mjs`](lib/mm.mjs)), widen them when the line is volatile, and earn the bid–ask spread
+while the sharp closing line does price discovery. Settlement stays trustless. This also reframes
+the awkward "we supply the liquidity" fact from the demos: **providing liquidity is a market
+maker's job, not an embarrassment.**
+
+`npm run marketmaker` backtests the design on the same real fixtures and **decomposes P&L into
+gross spread captured vs adverse selection**, under a clearly-labelled *synthetic* taker-flow
+model (Glosten–Milgrom: a tunable fraction of informed flow marks against the maker; the rest is
+noise). It is not real order flow, so it is **not evidence the maker is profitable** — it is the
+honest market-maker tension:
+
+| informed flow | gross spread | adverse selection | net P&L |
+|---|---:|---:|---:|
+| 0% (pure noise) | +3404 | −306 | **+3098** (20/20 fixtures) |
+| 20% | +3404 | −5940 | −2535 |
+| 40% (default) | +3404 | −8737 | −5333 |
+| 60% | +3404 | −10635 | −7231 |
+
+Spread income is constant and real; adverse selection scales with informed flow; **net
+profitability is entirely a function of the flow mix — which no synthetic backtest can settle.**
+That honest tension, not a printed number, is the point. `lib/mm.mjs` is unit-tested; the run is
+seeded and cache-only.
 
 ## Trading a market it didn't make (`agent-live.mjs`)
 
@@ -279,13 +309,32 @@ Because the proof binds a market to its real fixture, proof-settle markets are *
 per fixture** (a settled real event can't be re-opened) and the market is seeded by the
 real TxLINE fixture id.
 
+## Oracle risk & limitations — read before trusting it with value
+
+Honesty about the boundaries, because a serious reviewer will ask:
+
+- **Single-oracle trust.** Settlement is only as correct as TxLINE's `validate_stat` proof. There
+  is **no fallback oracle.** The trustlessness is *"the winner is derived from the proof, not
+  typed in"* — **not** *"the proof is guaranteed true."* If TxLINE returned a wrong proof, the
+  contract would settle on it. Production would need a second oracle or a dispute window.
+- **Fail-safe on absence, not on error.** With no full-time (period 100) proof, the contract
+  **refuses to settle** — funds stay locked rather than resolve wrong, so an outage *delays*
+  settlement, it doesn't misresolve. Bad *data*, however, is trusted (see above).
+- **Devnet only.** A devnet demonstration: no mainnet deployment, no real value. The Anchor
+  program has **no professional audit** and no emergency-pause authority yet.
+- **Statistical limits.** The edge is directional at N=20 (CI spans zero); the value strategy is
+  intentionally simple; the market-making figures use *synthetic* flow. None of it is a
+  risk-of-capital recommendation, and this is **not financial advice**.
+
 ## Roadmap
 
 Built this round: persistent per-tick SSE repricing, reconnect/deduplication,
-policy-gated execution, a hash-chained decision ledger, CLV backtest,
-quarter-Kelly sizing, exposure caps, credential-free verifier, and containerized
-reproduction. Next: two-sided market making with pre-settlement exit on edge
-reversal and a monitoring page for equity, rolling CLV, exposure, and gate state.
+policy-gated execution, a hash-chained decision ledger, CLV backtest, quarter-Kelly
+sizing, exposure caps, credential-free verifier, containerized reproduction, CI
+(deterministic + reproducibility jobs), and an inventory-aware market-making design
+with an honest spread-vs-adverse-selection decomposition. Next: validate the maker
+against real (not synthetic) taker flow, a pre-settlement exit on edge reversal, and
+a monitoring page for equity, rolling CLV, exposure, and gate state.
 
 ## Design credit
 
