@@ -14,6 +14,25 @@ per-tick pricing, and verifies the policy ledger's hash chain.
 
 **Dashboard (application access):** https://edgebot-txline.vercel.app
 
+## What's novel here — and what isn't
+
+A quant judge deserves precision, so: **the trading strategy is deliberately simple and is
+*not* the contribution.** Fair = raw demargined home probability, edge = fair − market price,
+size = quarter-Kelly, act if `|edge| > 3%`. That is a textbook value rule any quant could write
+in an afternoon, and we don't dress it up as more.
+
+What is genuinely worth judging:
+
+- **Trustless CPI proof-settlement.** The winner is derived *on-chain* from a TxLINE Merkle
+  proof — no admin, and nobody (including us) can type the outcome in. This is rare.
+- **A zero-credential verifier.** `npm run judge:verify` re-derives every claim from public
+  devnet + real TxLINE with no wallet, key, or account. Trust is falsifiable, not asserted.
+- **A per-tick SSE → fail-closed policy gate → hash-chained audit ledger** control plane.
+
+The strategy is the plumbing test; the **settlement and verification layers are the point.** The
+demos below prove the *mechanism* runs end to end — they are not, and are not claimed to be,
+evidence of a profitable trading edge (see the honest CLV read further down).
+
 ## Signal → decision → execution → honest settlement
 
 1. **Stream** TxLINE odds over persistent SSE. Each unique 1X2 event triggers a
@@ -68,10 +87,12 @@ edge: +6.046pp                   policy: ALLOW
 quarter-Kelly deposit: 20.153333 test USDC on YES
 ```
 
-The independent operator had supplied 100 YES / 300 NO test-USDC liquidity; that
-liquidity is a disclosed counterparty price, not a claimed signal. An earlier live
-tick at a 33.333% market price produced only 2.335pp edge and was **DENIED**, proving
-the threshold was not relaxed for the demo.
+Full disclosure of where the edge came from: the operator supplied 100 YES / 300 NO test-USDC
+and **moved the price by adding liquidity between ticks** — so the +6.046pp gap was *created by
+the operator, not discovered* in an independent market. This is a disclosed mechanism
+demonstration. What it legitimately shows is that the live SSE → policy → transaction path fires
+only when the threshold is met: an earlier tick at a 33.333% price gave just 2.335pp and was
+**DENIED**, so the gate was not relaxed for the demo.
 
 The successful deposit is public on devnet:
 [`4qfLpfi…BRSCc`](https://explorer.solana.com/tx/4qfLpfiXnZ8vUo7BbpLkTR2BjXGryoAS1Hx7XbFQc9WDg5YGbrckfN7UM3GpNXFnSpDudCVNyKaFBrxf1eTBRSCc?cluster=devnet).
@@ -81,14 +102,19 @@ committed in [`evidence/live-daemon-proof-2026-07-19.json`](evidence/live-daemon
 chain, fetches the transaction, confirms its trader/market/program accounts, and
 checks that the gated amount landed in the market pools.
 
-## Live demo (devnet) — a real, finished fixture
+## Mechanism demo (devnet) — the loop, end to end
 
-Market: **"Argentina to win outright"**, TxLINE fixture `18202701` (Argentina
-finished **3–2**). Counterparty liquidity of 100 USDC was seeded on the NO side so
-the market is tradeable on devnet (this is honestly labelled as liquidity, not a
-signal). TxLINE's demargined closing line put **P(Argentina win) at 72.5%**
-(1X2 = 72/19/8) while the market opened at YES = 0%, so EdgeBot bought YES down the
-shrinking edge:
+**Read this as a mechanism demonstration, not an edge.** On devnet there is no liquid
+counterparty market, so the operator *seeds* the market away from fair value — which means the
+mispricing EdgeBot trades here is **manufactured by the seed, not discovered.** What it proves
+is that the full loop — price → gate → execute → proof-settle → claim — runs autonomously and
+settles on the real score. Whether the strategy has alpha is a separate question, answered
+(honestly, and inconclusively at N=20) by the CLV section below.
+
+Market: **"Argentina to win outright"**, TxLINE fixture `18202701` (Argentina finished
+**3–2**). The operator seeded 100 USDC on NO as a disclosed counterparty price; TxLINE's
+demargined closing line put **P(Argentina win) at 72.5%** (1X2 = 72/19/8) while the seeded
+market opened at YES = 0%, so EdgeBot bought YES down the (operator-created) gap:
 
 | round | fair | market YES | edge | action |
 |---|---|---|---|---|
@@ -110,9 +136,10 @@ realized P&L:               +100.0 USDC   ← settled on the REAL score from TxL
                                             not an outcome the agent chose
 ```
 
-The agent only profits because the side it staked (Argentina) matched the real
-result. Ask "how do you know it won?" → "TxLINE's finalised score says 3–2."
-Execution venue: [`AfvTru…DbD8`](https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet)
+The +100 is real capital settling on the real score — but it is a **product of the operator's
+seed, not proof that EdgeBot beats an efficient market.** The agent profits because the side it
+staked matched the finalised result; ask "how do you know it won?" → "TxLINE's finalised score
+says 3–2." Execution venue: [`AfvTru…DbD8`](https://explorer.solana.com/address/AfvTruVTsrMfqSe5Tgss6hEgYNkk9ADAGKupSQr2DbD8?cluster=devnet)
 (devnet) · live dashboard: https://edgebot-txline.vercel.app
 
 ## Proven edge — CLV backtest (`backtest.mjs`)
@@ -124,7 +151,8 @@ bootstrap 95% CI**, a **walk-forward** out-of-sample split, and a **calibration*
 
 **1 · Book sharpness — the robust result.** The demargined **closing line's Brier score is
 0.193 vs a 0.240 base rate** (lower = sharper). The price EdgeBot bets *toward* is genuinely
-sharp, so arbitraging a naive market against it is real +EV — not just the demo's seeded gap.
+sharp; *if* a naive market misprices against it, arbitraging that gap is +EV in expectation —
+but whether such a gap exists in the wild is exactly what N=20 cannot yet confirm (below).
 The report prints a reliability table (predicted vs actual win-rate per probability bin).
 
 **2 · Walk-forward CLV — the honest, non-cherry-picked test.** We select the strategy on the
@@ -134,8 +162,8 @@ best in-sample number (an in-sample "fade" sweep shows +8.96% CLV, but that's ch
 its CI also includes zero). The rigour is the point, and it scales to the full fixture history.
 
 This is deliberately the *same* honest posture as the strongest competing agents: nobody has a
-statistically significant CLV at this sample — the difference is that our edge sits on top of
-**real on-chain capital execution**, which the paper-only agents don't have.
+statistically significant CLV at this sample. What EdgeBot adds is **not a bigger edge claim** —
+it is real on-chain capital execution and trustless settlement that the paper-only agents lack.
 
 ## Full quant dossier (`quant-study.mjs` · `npm run quant`)
 
@@ -258,3 +286,10 @@ policy-gated execution, a hash-chained decision ledger, CLV backtest,
 quarter-Kelly sizing, exposure caps, credential-free verifier, and containerized
 reproduction. Next: two-sided market making with pre-settlement exit on edge
 reversal and a monitoring page for equity, rolling CLV, exposure, and gate state.
+
+## Design credit
+
+The dashboard's layout and interaction craft are modeled on Mercury's product dashboard
+(mercury.com); the colour palette, brand, wordmark, and all content are EdgeBot's own, and the
+UI is **not** claimed as a novel contribution. It exists only to make the verifier and
+settlement evidence legible.
